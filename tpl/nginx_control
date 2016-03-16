@@ -1,0 +1,129 @@
+#!/bin/bash
+
+set -e
+
+PEQ_ROOT=${PEQ_ROOT}
+NGINX_HOME=$PEQ_ROOT/webserver
+NGINX_BIN=$NGINX_HOME/sbin/nginx
+PID_FILE=$PEQ_ROOT/var/nginx/nginx.pid
+NGINX_LOG="access_log error_log"
+
+#/etc/rc.d/init.d/functions
+
+cd $NGINX_HOME/sbin
+
+not() {
+    if $@; then
+        return 1;
+    else
+        return 0;
+    fi
+}
+
+wait_for() {
+    local try=$1
+    shift
+    for ((;try>0;try--)); do
+        if $@ ; then
+            return 0
+        fi
+        echo -n .
+        sleep 1
+    done
+    return 1
+}
+
+process_exists() {
+    local pid=$1
+    local bin=$2
+    if [[ -d /proc/$pid ]]; then
+        local exe=`readlink -f /proc/$pid/exe`
+		if [[ ${exe/\/\//\/} == ${bin/\/\//\/} ]]; then
+            return 0
+        fi
+        # 对于目录被移动的情况
+        if [[ ! -e $exe ]]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+start() {
+    echo -n "Starting nginx: "
+    
+    if [ ! -d "$PEQ_ROOT/log/webserver" ]
+    then
+        mkdir "$PEQ_ROOT/log/webserver"
+    fi
+
+    for i in $NGINX_LOG
+    do
+        if [ ! -f "$PEQ_ROOT/log/webserver/$i" ] ; then
+            touch "$PEQ_ROOT/log/webserver/$i"
+        fi
+        if [ ! -h "$PEQ_ROOT/log/$i" ] ; then
+            ln -s "webserver/$i" "$PEQ_ROOT/log/$i"
+        fi
+    done
+    
+    if GCONV_PATH=$ODP_GCONV_PATH $NGINX_BIN </dev/null; then
+        echo "ok"
+    else
+        echo "fail"
+    fi
+}
+
+stop() {
+    if [[ ! -f $PID_FILE ]]; then
+        return
+    fi
+    PID=`head $PID_FILE`
+    if ! process_exists $PID $NGINX_BIN; then
+        rm $PID_FILE
+        return
+    fi
+    echo -n "Stopping nginx: "
+    # when nginx.conf error, nginx -s stop will failed
+    #GCONV_PATH=$ODP_GCONV_PATH $NGINX_BIN -s stop
+    kill $PID
+    if wait_for 10 "not process_exists $PID $NGINX_BIN"; then
+        echo 'ok'
+    else
+        echo 'fail'
+        exit 1
+    fi
+}
+
+
+case "$1" in
+start)
+    stop
+    start
+    ;;
+
+stop)
+    stop
+    ;;
+
+restart)
+    stop
+    start
+    ;;
+
+reload)
+    if GCONV_PATH=$ODP_GCONV_PATH $NGINX_BIN -s reload; then
+        echo  "reload ok, please check it youself";
+    else
+        echo "reload fail"
+    fi
+    ;;
+
+chkconfig)
+    GCONV_PATH=$ODP_GCONV_PATH $NGINX_BIN -t
+    ;;
+
+*)
+echo "Usage: $0 {start|stop|restart|chkconfg|reload}"
+exit 1
+esac

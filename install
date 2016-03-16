@@ -1,0 +1,220 @@
+#!/bin/bash
+function usage() {
+	echo "Usage:"
+	echo "    bash ./install_peq --prefix=\$YOUR_PATH";
+	exit 1
+}
+
+NGINX_INSTALL_STATE=/tmp/nginx.install.state
+PHP_INSTALL_STATE=/tmp/php.install.state
+YAF_INSTALL_STATE=/tmp/yaf.install.state
+
+function install_nginx(){
+	{
+		pushd $PWD >/dev/null
+		cd package
+
+		_TAR=$(ls nginx*.tar.gz);
+		if [ $? -ne 0 ]; then
+			exit $?
+		fi
+		_DIR=$(tar zvxf $_TAR);
+		if [ $? -ne 0 ]; then
+			exit $?
+		fi
+
+		if [ -f "$NGINX_INSTALL_STATE" ]; then
+    		rm -f $NGINX_INSTALL_STATE
+		fi
+
+		cd $_DIR && ./configure --prefix=${PREFIX}/webserver &>>/tmp/install.log
+		
+		make -j8 &>>/tmp/install.log && make install &>>/tmp/install.log
+
+		popd >/dev/null
+		cp tpl/nginx.conf ${PREFIX}/webserver/conf && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/webserver/conf/nginx.conf
+		cp tpl/nginx_control ${PREFIX}/webserver && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/webserver/nginx_control
+		cp tpl/fastcgi.conf ${PREFIX}/webserver/conf
+		cp tpl/fastcgi_params ${PREFIX}/webserver/conf
+		echo "done" > $NGINX_INSTALL_STATE
+	}&
+
+    NGINX_IS__DONE="0"
+    while :
+    do
+        for j in '-' '\\' '|' '/'; do
+             tput sc
+             echo -ne  "Installing Nginx, Please wait....... $j"
+             sleep 0.1
+             tput rc
+            
+             if [ -f "$NGINX_INSTALL_STATE" ]; then
+                 rm -f $NGINX_INSTALL_STATE
+                 echo "Install Nginx Done                                         "
+                 NGINX_IS_DONE="1"
+                 break
+             fi
+        done
+        if [ "$NGINX_IS_DONE" = "1" ]; then
+            break
+        fi
+    done
+}
+
+function install_php(){
+	{
+		pushd $PWD >/dev/null
+		cd package
+
+		_TAR=$(ls php*.tar.gz);
+		if [ $? -ne 0 ]; then
+			exit $?
+		fi
+		_DIR=$(tar zvxf $_TAR);
+		if [ $? -ne 0 ]; then
+			exit $?
+		fi
+
+		if [ -f "$PHP_INSTALL_STATE" ]; then
+    		rm -f $PHP_INSTALL_STATE
+		fi
+
+		cd $_DIR && ./configure --prefix=${PREFIX}/php --with-mysqli --with-mysql --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc  --enable-fpm &>>/tmp/install.log 
+
+		make -j8 &>>/tmp/install.log && make install &>>/tmp/install.log
+
+		popd >/dev/null
+
+		mv ${PREFIX}/php/etc/php-fpm.conf.default ${PREFIX}/php/etc/php-fpm.conf
+
+		cp tpl/php.ini $PREFIX/php/etc && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/php/etc/php.ini 
+
+		cp tpl/php-fpm_control ${PREFIX}/php && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/php-fpm_control
+
+		cp tpl/php-fpm.conf ${PREFIX}/php/etc && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/etc/php-fpm.conf
+
+		echo "done" > $PHP_INSTALL_STATE
+	}&
+
+    PHP_IS__DONE="0"
+    while :
+    do
+        for j in '-' '\\' '|' '/'; do
+             tput sc
+             echo -ne  "Installing PHP, Please wait....... $j"
+             sleep 0.1
+             tput rc
+            
+             if [ -f "$PHP_INSTALL_STATE" ]; then
+                 rm -f $PHP_INSTALL_STATE
+                 echo "Install PHP Done                                         "
+                 PHP_IS_DONE="1"
+                 break
+             fi
+        done
+        if [ "$PHP_IS_DONE" = "1" ]; then
+            break
+        fi
+    done
+}
+
+function install_yaf(){
+	{
+		pushd $PWD >/dev/null
+		cd package
+
+		_TAR=$(ls yaf*.tar.gz);
+		if [ $? -ne 0 ]; then
+			exit $?
+		fi
+		_DIR=$(tar zvxf $_TAR);
+		if [ $? -ne 0 ]; then
+			exit $?
+		fi
+
+		_DIR=$(echo $_TAR | awk -F. '{print $1"."$2"."$3}')
+
+		if [ -f "$YAF_INSTALL_STATE" ]; then
+    		rm -f $YAF_INSTALL_STATE
+		fi
+
+		cd $_DIR && ${PREFIX}/php/bin/phpize &>>/tmp/install.log && ./configure --with-php-config=${PREFIX}/php/bin/php-config &>>/tmp/install.log
+		
+		make -j8 &>>/tmp/install.log && make install &>>/tmp/install.log
+
+		popd >/dev/null
+
+		cp tpl/yaf.ini $PREFIX/php/etc/ext && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/php/etc/ext/yaf.ini
+		echo "done" > $YAF_INSTALL_STATE
+	}&
+
+    YAF_IS__DONE="0"
+    while :
+    do
+        for j in '-' '\\' '|' '/'; do
+             tput sc
+             echo -ne  "Installing Yaf, Please wait....... $j"
+             sleep 0.1
+             tput rc
+            
+             if [ -f "$YAF_INSTALL_STATE" ]; then
+                 rm -f $YAF_INSTALL_STATE
+                 echo "Install Yaf Done                                         "
+                 YAF_IS_DONE="1"
+                 break
+             fi
+        done
+        if [ "$YAF_IS_DONE" = "1" ]; then
+            break
+        fi
+    done
+}
+
+function install_demo(){
+	cp -r $PWD/demo/app/* ${PREFIX}/app
+	mkdir -p ${PREFIX}/conf/app && cp -r $PWD/demo/conf/app/* ${PREFIX}/conf/app && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/app/helloworld/yaf.ini
+	cp -r $PWD/demo/webroot/* ${PREFIX}/webroot
+	echo "Install Demo Done"
+}
+
+PREFIX=""
+
+for arg in "$@"
+do
+	CMD=$(echo $arg | cut -d = -f 1)
+	if [ $CMD != "--prefix" ]; then
+		echo "unknown opt $CMD"
+	else
+		PREFIX=$(echo $arg | cut -d = -f 2)
+	fi
+	
+done
+
+if [ ${PREFIX}x == x ]; then
+	usage
+elif [ ${PREFIX} == "--prefix" ]; then
+	echo "Please assign install prefix path!"
+fi
+
+if [ -e /tmp/install.log ]; then
+	rm /tmp/install.log
+fi
+
+mkdir -p ${PREFIX}
+mkdir -p ${PREFIX}/app
+mkdir -p ${PREFIX}/conf
+mkdir -p ${PREFIX}/data
+mkdir -p ${PREFIX}/log
+mkdir -p ${PREFIX}/php
+mkdir -p ${PREFIX}/php/etc/ext
+cp -r ./phplib ${PREFIX}/php/
+mkdir -p ${PREFIX}/webroot
+mkdir -p ${PREFIX}/webserver
+mkdir -p ${PREFIX}/var
+mkdir -p ${PREFIX}/var/nginx
+mkdir -p ${PREFIX}/var/php
+
+install_nginx
+install_php
+install_yaf
+install_demo

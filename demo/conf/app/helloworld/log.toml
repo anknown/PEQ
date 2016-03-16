@@ -1,0 +1,4 @@
+level = 16
+auto_rotate = 1
+use_sub_dir = 1
+format = "%L: %{%y-%m-%d %H:%M:%S}t %{app}x * %{pid}x [logid=%l reqid=%r filename=%f lineno=%N uri=%U errno=%{err_no}x %S] %{err_msg}x"
