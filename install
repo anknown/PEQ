@@ -196,6 +196,8 @@ elif [ ${PREFIX} == "--prefix" ]; then
 	echo "Please assign install prefix path!"
 fi
 
+tar zxf package.tar.gz
+
 if [ -e /tmp/install.log ]; then
 	rm /tmp/install.log
 fi
