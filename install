@@ -256,8 +256,8 @@ mkdir -p ${PREFIX}/var
 mkdir -p ${PREFIX}/var/nginx
 mkdir -p ${PREFIX}/var/php
 
-#install_nginx
-#install_php
-#install_yaf
+install_nginx
+install_php
+install_yaf
 install_curl
-#install_demo
+install_demo
