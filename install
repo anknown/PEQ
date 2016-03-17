@@ -8,6 +8,7 @@ function usage() {
 NGINX_INSTALL_STATE=/tmp/nginx.install.state
 PHP_INSTALL_STATE=/tmp/php.install.state
 YAF_INSTALL_STATE=/tmp/yaf.install.state
+CURL_INSTALL_STATE=/tmp/curl.install.state
 
 function install_nginx(){
 	{
@@ -170,6 +171,47 @@ function install_yaf(){
     done
 }
 
+function install_curl(){
+	{
+		pushd $PWD >/dev/null
+		cd package/php*
+
+		if [ -f "$CURL_INSTALL_STATE" ]; then
+    		rm -f $CURL_INSTALL_STATE
+		fi
+
+		cd ext/curl && ${PREFIX}/php/bin/phpize &>>/tmp/install.log && ./configure --with-php-config=${PREFIX}/php/bin/php-config &>>/tmp/install.log
+		
+		make -j8 &>>/tmp/install.log && make install &>>/tmp/install.log
+
+		popd >/dev/null
+
+		cp tpl/curl.ini $PREFIX/php/etc/ext
+		echo "done" > $CURL_INSTALL_STATE
+	}&
+
+    CURL_IS__DONE="0"
+    while :
+    do
+        for j in '-' '\\' '|' '/'; do
+             tput sc
+             echo -ne  "Installing cURL, Please wait....... $j"
+             sleep 0.1
+             tput rc
+            
+             if [ -f "$CURL_INSTALL_STATE" ]; then
+                 rm -f $CURL_INSTALL_STATE
+                 echo "Install cURL Done                                         "
+                 CURL_IS_DONE="1"
+                 break
+             fi
+        done
+        if [ "$CURL_IS_DONE" = "1" ]; then
+            break
+        fi
+    done
+}
+
 function install_demo(){
 	cp -r $PWD/demo/app/* ${PREFIX}/app
 	mkdir -p ${PREFIX}/conf/app && cp -r $PWD/demo/conf/app/* ${PREFIX}/conf/app && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/app/helloworld/yaf.ini
@@ -196,8 +238,6 @@ elif [ ${PREFIX} == "--prefix" ]; then
 	echo "Please assign install prefix path!"
 fi
 
-tar zxf package.tar.gz
-
 if [ -e /tmp/install.log ]; then
 	rm /tmp/install.log
 fi
@@ -216,7 +256,8 @@ mkdir -p ${PREFIX}/var
 mkdir -p ${PREFIX}/var/nginx
 mkdir -p ${PREFIX}/var/php
 
-install_nginx
-install_php
-install_yaf
-install_demo
+#install_nginx
+#install_php
+#install_yaf
+install_curl
+#install_demo
