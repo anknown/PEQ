@@ -205,7 +205,7 @@ class Base_Db_ConnMgr
 	    //(1) alreay save a connection (2)user do not need to recreate
 	    if(!empty($lastDb[$clusterName]) && !$getNew)
         {
-            //Bd_Log::trace('Return an existing connection',0,array('db_cluster'=>$clusterName));
+            //Base_Log::trace('Return an existing connection',0,array('db_cluster'=>$clusterName));
             return $lastDb[$clusterName];
 	    }
 
@@ -219,7 +219,7 @@ class Base_Db_ConnMgr
 	    //add hook
         if('' !== ($before = $conf['hook_before_query']))
         {
-            if(!$db->addHook(Bd_Db::HK_BEFORE_QUERY,$clusterName.'-before',$before))
+            if(!$db->addHook(Base_Db::HK_BEFORE_QUERY,$clusterName.'-before',$before))
             {
                 self::$_error['errno'] = SET_HOOK_ERROR;
                 self::$_error['error'] = 'Hook(befor query):'.$before.' is not callable';
@@ -228,7 +228,7 @@ class Base_Db_ConnMgr
         }
         if('' !== ($after = $conf['hook_after_query']))
         {
-            if(!$db->addHook(Bd_Db::HK_AFTER_QUERY,$clusterName.'-after',$after))
+            if(!$db->addHook(Base_Db::HK_AFTER_QUERY,$clusterName.'-after',$after))
             {
                 self::$_error['errno'] = SET_HOOK_ERROR;
                 self::$_error['error'] = 'Hook(after query):'.$after.' is not callable';

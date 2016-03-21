@@ -32,7 +32,7 @@ class Base_Db_StmtResult extends Base_Db_AbsDBResult
         }
     }
 
-    public function next($type = Bd_DB::FETCH_ASSOC)
+    public function next($type = Base_DB::FETCH_ASSOC)
     {
         $ret = $this->stmt->fetch();
         if(!$ret)
@@ -40,7 +40,7 @@ class Base_Db_StmtResult extends Base_Db_AbsDBResult
             return $ret;
         }
 
-        if($type == Bd_DB::FETCH_ASSOC)
+        if($type == Base_DB::FETCH_ASSOC)
         {
             foreach($this->row as $k => $v)
             {

@@ -67,7 +67,7 @@ class Base_DB
     public function enableSplitDB($strDBName,$strConfPath,$strConfFilename)
     {
     	$this->strDBName = $strDBName;
-    	$this->splitDB = new BD_DB_SplitDB($strDBName,$strConfPath,$strConfFilename);
+    	$this->splitDB = new Base_DB_SplitDB($strDBName,$strConfPath,$strConfFilename);
     	if(is_null($this->splitDB))
     	{
     		return false;

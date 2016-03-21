@@ -9,7 +9,7 @@ class Base_Db_RandSelector implements Base_Db_IHostSelector
     *
     * @return 
     */
-    public function select(Bd_Db_DBMan $dbman, $key = NULL)
+    public function select(Base_Db_DBMan $dbman, $key = NULL)
     {
         if(!count($dbman->validHosts))
         {

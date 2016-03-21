@@ -1,6 +1,6 @@
 <?php
 // result of DB query
-class Base_Db_DBResult extends Bd_Db_AbsDBResult
+class Base_Db_DBResult extends Base_Db_AbsDBResult
 {
     private $result;
     private $pos = 0;
@@ -25,9 +25,9 @@ class Base_Db_DBResult extends Bd_Db_AbsDBResult
 	*
 	* @return 
 	*/
-    public function next($type = Bd_DB::FETCH_ASSOC)
+    public function next($type = Base_DB::FETCH_ASSOC)
     {
-        if($type == Bd_DB::FETCH_ASSOC)
+        if($type == Base_DB::FETCH_ASSOC)
         {
             $row = $this->result->fetch_assoc();
         }

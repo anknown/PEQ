@@ -8,7 +8,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
     private $sql = NULL;
     private $db = NULL;
 
-    public function __construct(Bd_DB $db)
+    public function __construct(Base_DB $db)
     {
         $this->db = $db;
     }
@@ -41,7 +41,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         // 1. options
         if($options !== NULL)
         {
-            $options = $this->__makeList($options, Bd_Db_SQLAssember::LIST_COM, ' ');
+            $options = $this->__makeList($options, Base_Db_SQLAssember::LIST_COM, ' ');
             if(!strlen($options))
             {
                 $this->sql = NULL;
@@ -51,7 +51,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         }
 
         // 2. fields
-        $fields = $this->__makeList($fields, Bd_Db_SQLAssember::LIST_COM);
+        $fields = $this->__makeList($fields, Base_Db_SQLAssember::LIST_COM);
         if(!strlen($fields))
         {
             $this->sql = NULL;
@@ -60,7 +60,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         $sql .= "$fields FROM ";
 
         // 3. from
-        $tables = $this->__makeList($tables, Bd_Db_SQLAssember::LIST_COM);
+        $tables = $this->__makeList($tables, Base_Db_SQLAssember::LIST_COM);
         if(!strlen($tables))
         {
             $this->sql = NULL;
@@ -71,7 +71,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         // 4. conditions
         if($conds !== NULL)
         {
-            $conds = $this->__makeList($conds, Bd_Db_SQLAssember::LIST_AND);
+            $conds = $this->__makeList($conds, Base_Db_SQLAssember::LIST_AND);
             if(!strlen($conds))
             {
                 $this->sql = NULL;
@@ -83,7 +83,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         // 5. other append
         if($appends !== NULL)
         {
-            $appends = $this->__makeList($appends, Bd_Db_SQLAssember::LIST_COM, ' ');
+            $appends = $this->__makeList($appends, Base_Db_SQLAssember::LIST_COM, ' ');
             if(!strlen($appends))
             {
                 $this->sql = NULL;
@@ -153,7 +153,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         else
         {
             $sql = "UPDATE $options $table SET ";
-            $row = $this->__makeList($row, Bd_Db_SQLAssember::LIST_SET);
+            $row = $this->__makeList($row, Base_Db_SQLAssember::LIST_SET);
             if(!strlen($row))
             {
                 $this->sql = NULL;
@@ -165,7 +165,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         // 3. conditions
         if($conds !== NULL)
         {
-            $conds = $this->__makeList($conds, Bd_Db_SQLAssember::LIST_AND);
+            $conds = $this->__makeList($conds, Base_Db_SQLAssember::LIST_AND);
             if(!strlen($conds))
             {
                 $this->sql = NULL;
@@ -177,7 +177,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         // 4. other append
         if($appends !== NULL)
         {
-            $appends = $this->__makeList($appends, Bd_Db_SQLAssember::LIST_COM, ' ');
+            $appends = $this->__makeList($appends, Base_Db_SQLAssember::LIST_COM, ' ');
             if(!strlen($appends))
             {
                 $this->sql = NULL;
@@ -218,7 +218,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         $sql .= "$table SET ";
 
         // 3. clumns and values
-        $row = $this->__makeList($row, Bd_Db_SQLAssember::LIST_SET);
+        $row = $this->__makeList($row, Base_Db_SQLAssember::LIST_SET);
         if(!strlen($row))
         {
             $this->sql = NULL;
@@ -229,7 +229,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         if(!empty($onDup))
         {
             $sql .= ' ON DUPLICATE KEY UPDATE ';
-            $onDup = $this->__makeList($onDup, Bd_Db_SQLAssember::LIST_SET);
+            $onDup = $this->__makeList($onDup, Base_Db_SQLAssember::LIST_SET);
             if(!strlen($onDup))
             {
                 $this->sql = NULL;
@@ -241,7 +241,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         return $sql;
     }
 
-    private function __makeList($arrList, $type = Bd_Db_SQLAssember::LIST_SET, $cut = ', ')
+    private function __makeList($arrList, $type = Base_Db_SQLAssember::LIST_SET, $cut = ', ')
     {
         if(is_string($arrList))
         {
@@ -251,7 +251,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
         $sql = '';
 
         // for set in insert and update
-        if($type == Bd_Db_SQLAssember::LIST_SET)
+        if($type == Base_Db_SQLAssember::LIST_SET)
         {
             foreach($arrList as $name => $value)
             {
@@ -278,7 +278,7 @@ class Base_Db_SQLAssember implements Base_Db_ISQL
             $sql = substr($sql, 0, strlen($sql) - 2);
         }
         // for where conds
-        else if($type == Bd_Db_SQLAssember::LIST_AND)
+        else if($type == Base_Db_SQLAssember::LIST_AND)
         {
             foreach($arrList as $name => $value)
             {

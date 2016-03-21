@@ -61,7 +61,7 @@ class Base_Db_DBStmt
 	*
 	* @return 
 	*/
-    public function execute($fetchType = Bd_DB::FETCH_ASSOC, $bolUseResult = false)
+    public function execute($fetchType = Base_DB::FETCH_ASSOC, $bolUseResult = false)
     {
         if(!$this->stmt->execute())
         {
@@ -78,13 +78,13 @@ class Base_Db_DBStmt
         $res->free();
 
         // get an object
-        if($fetchType == Bd_DB::FETCH_OBJ || $bolUseResult)
+        if($fetchType == Base_DB::FETCH_OBJ || $bolUseResult)
         {
             if(!$bolUseResult && !$this->stmt->store_result())
             {
                 return false;
             }
-            return new Bd_Db_StmtResult($this->stmt, $finfo, $this);
+            return new Base_Db_StmtResult($this->stmt, $finfo, $this);
         }
 
         // store result
@@ -121,7 +121,7 @@ class Base_Db_DBStmt
                 return false;
             }
  //           var_dump($row);
-            if($fetchType == Bd_DB::FETCH_ASSOC)
+            if($fetchType == Base_DB::FETCH_ASSOC)
             {
                 foreach($row as $k => $v)
                 {

@@ -109,22 +109,22 @@ class Base_Db_SQLTemplate implements Base_Db_ISQL
 
     private function bindOneParam($k, $v)
     {
-        $k = Bd_Db_SQLTemplate::V_BEGIN.$k;
+        $k = Base_Db_SQLTemplate::V_BEGIN.$k;
         if(!array_key_exists($k, $this->arrVar))
         {
             return null;
         }
 
-        if($this->arrVar[$k] == Bd_Db_SQLTemplate::T_NUM)
+        if($this->arrVar[$k] == Base_Db_SQLTemplate::T_NUM)
         {
             if(!is_numeric($v))
             {
                 return false;
             }
         }
-        else if($this->arrVar[$k] != Bd_Db_SQLTemplate::T_RAW)
+        else if($this->arrVar[$k] != Base_Db_SQLTemplate::T_RAW)
         {
-            if($this->db instanceof Bd_DB)
+            if($this->db instanceof Base_DB)
             {
                 $v = $this->db->escapeString($v);
             }
@@ -164,7 +164,7 @@ class Base_Db_SQLTemplate implements Base_Db_ISQL
         while($off != $total)
         {
             // search for variable
-            $nextOff = strpos($this->template, Bd_Db_SQLTemplate::V_BEGIN, $off);
+            $nextOff = strpos($this->template, Base_Db_SQLTemplate::V_BEGIN, $off);
             // not found
             if($nextOff === false)
             {
@@ -178,10 +178,10 @@ class Base_Db_SQLTemplate implements Base_Db_ISQL
                 $off = $nextOff;
             }
             // search for the split char
-            $nextOff = strpos($this->template, Bd_Db_SQLTemplate::V_SPLIT, $off);
+            $nextOff = strpos($this->template, Base_Db_SQLTemplate::V_SPLIT, $off);
             // bad format
             if($nextOff === false || ($varLen = $nextOff - $off) == 1 ||
-                $this->template{$nextOff+2} !=  Bd_Db_SQLTemplate::V_END)
+                $this->template{$nextOff+2} !=  Base_Db_SQLTemplate::V_END)
             {
                 $this->arrParsed = NULL;
                 $this->arrVar = NULL;
@@ -206,7 +206,7 @@ class Base_Db_SQLTemplate implements Base_Db_ISQL
         $sql = '';
         foreach($this->arrParsed as $v)
         {
-            if(strncmp($v, Bd_Db_SQLTemplate::V_BEGIN, strlen(Bd_Db_SQLTemplate::V_BEGIN)) == 0)
+            if(strncmp($v, Base_Db_SQLTemplate::V_BEGIN, strlen(Base_Db_SQLTemplate::V_BEGIN)) == 0)
             {
                 $sql .= $this->arrParams[$v];
             }

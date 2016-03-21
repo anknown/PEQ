@@ -2,13 +2,13 @@
 // abstract DBResult
 abstract class Base_Db_AbsDBResult
 {
-    abstract public function next($type = Bd_DB::FETCH_ASSOC);
+    abstract public function next($type = Base_DB::FETCH_ASSOC);
     abstract public function seek($where);
     abstract public function tell();
     abstract public function count();
     abstract public function free();
 
-    public function walk($callback, $type = Bd_DB::FETCH_ASSOC)
+    public function walk($callback, $type = Base_DB::FETCH_ASSOC)
     {
         // seek head
         if($this->tell() != 0 && !$this->seek(0))

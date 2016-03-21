@@ -17,8 +17,8 @@ class Base_Db_DBMan
     private $justFailedHosts = NULL;    // save failed hosts, which was down just now
     private $currentHostIndex = NULL;   // index of the host that currently in use in the allHosts array
 
-    private $hostSelector = NULL;       // Bd_Db_IHostSelector object to select host
-    private $statusMan = NULL;          // Bd_Db_IStatusMan object to load and save hosts' status
+    private $hostSelector = NULL;       // Base_Db_IHostSelector object to select host
+    private $statusMan = NULL;          // Base_Db_IStatusMan object to load and save hosts' status
 
     private $db = NULL;                 // DB object that currently in use
 
@@ -26,8 +26,8 @@ class Base_Db_DBMan
         $arrHosts,                   // array(array($host, $port), array(...), ...)
         $userConf,                   // array('uname' => 'foo', 'passwd' => 'bar')
         $dbname,                     // 'mydb'
-        Bd_Db_IHostSelector $hostSelector, // new RandSelector()
-        Bd_Db_IStatusMan $statusMan = NULL // new StatusManFile('tmp')
+        Base_Db_IHostSelector $hostSelector, // new RandSelector()
+        Base_Db_IStatusMan $statusMan = NULL // new StatusManFile('tmp')
     )
     {
         $this->allHosts = $arrHosts;
@@ -48,7 +48,7 @@ class Base_Db_DBMan
                 if(!empty($status))
                 {
                     // filter failed host
-                    if(($status['last_failed_time'] + Bd_Db_DBMan::$RETRY_INTERVAL) > $now)
+                    if(($status['last_failed_time'] + Base_Db_DBMan::$RETRY_INTERVAL) > $now)
                     {
 //                        echo "filter: {$host[0]}:{$host[1]}\n";
                         $this->failedHosts[$key] = $host;
@@ -82,10 +82,10 @@ class Base_Db_DBMan
             return $this->db;
         }
 
-        $db = new Bd_DB(Bd_Db_DBMan::$ENABLE_PROFILING);
-        if(Bd_Db_DBMan::$CONN_TIMEOUT > 0)
+        $db = new Base_DB(Base_Db_DBMan::$ENABLE_PROFILING);
+        if(Base_Db_DBMan::$CONN_TIMEOUT > 0)
         {
-            $db->setConnectTimeOut(Bd_Db_DBMan::$CONN_TIMEOUT);
+            $db->setConnectTimeOut(Base_Db_DBMan::$CONN_TIMEOUT);
         }
 
         // 尝试的次数
@@ -110,7 +110,7 @@ class Base_Db_DBMan
                 $this->userConf['passwd'],
                 $this->dbname,
                 $host[1],
-                Bd_Db_DBMan::$CONN_FLAGS
+                Base_Db_DBMan::$CONN_FLAGS
             );
             // got it
             if($ret)
@@ -120,7 +120,7 @@ class Base_Db_DBMan
             // record failed host
             $this->_recordFailedHost($index);
             // try count exceeded
-            if(++$try_count == Bd_Db_DBMan::$MAX_TRY_COUNT)
+            if(++$try_count == Base_Db_DBMan::$MAX_TRY_COUNT)
             {
                 return false;
             }
