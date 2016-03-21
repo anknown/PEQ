@@ -8,6 +8,11 @@
  * 调用的次序, 和申明的次序相同
  */
 class Bootstrap extends Yaf_Bootstrap_Abstract{
+    public function _initConf(){
+        $loader = Yaf_Loader::getInstance();
+            $loader->registerLocalNamespace(array("Library"));
+    }
+
 	public function _initRoute(Yaf_Dispatcher $dispatcher) {
 		//在这里注册自己的路由协议,默认使用简单路由
 	}
