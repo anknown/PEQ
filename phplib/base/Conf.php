@@ -1,8 +1,12 @@
 <?php
 class Base_Conf {
-
     public static function getConf($path) {
         $path = CONF_PATH."/".$path;
+
+        if(!file_exists($path)){
+            return false;
+        }
+
         return \Yosymfony\Toml\Toml::parse($path);
     }
 
@@ -11,8 +15,25 @@ class Base_Conf {
             $app = Base_AppEnv::getCurrApp();
         }
 
-        
-        return \Yosymfony\Toml\Toml::parse(CONF_PATH."/app/".$app."/".$path);
+        $path = CONF_PATH."/app/".$app."/".$path;       
+
+        if(!file_exists($path)){
+            return false;
+        }
+
+        return \Yosymfony\Toml\Toml::parse($path);
+    }
+
+    public static function getConfEx($section){
+        $path = $section.".toml";
+
+        return self::getConf($path);
+    }
+
+    public static function getAppConfEx($section, $app=''){
+        $path = $section.".toml";
+
+        return self::getAppConf($path, $app);
     }
 }
 
