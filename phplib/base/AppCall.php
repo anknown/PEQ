@@ -11,8 +11,16 @@ final class Base_AppCall {
         $yafApp->setAppDirectory($appDir);
 
         $yafLoader = Yaf_Loader::getInstance();
-        $appLib    = Base_AppEnv::getEnv('code')."/library";
+        $appLib    = Base_AppEnv::getEnv('code');
         $yafLoader->setLibraryPath($appLib);
+
+        $yafNS     = Base_Conf::getAppConf("yaf.toml");
+        if(isset($yafNS['local_namespace'])){
+            $yafNS = $yafNS['local_namespace'];
+        } else {
+            $yafNS = array();
+        }
+        $yafLoader->registerLocalNamespace($yafNS);
     }
 
     public static function switchToApp($app){

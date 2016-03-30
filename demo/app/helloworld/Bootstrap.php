@@ -9,8 +9,14 @@
  */
 class Bootstrap extends Yaf_Bootstrap_Abstract{
     public function _initConf(){
+        $yafNS     = Base_Conf::getAppConf("yaf.toml");
+        if(isset($yafNS['local_namespace'])){
+            $yafNS = $yafNS['local_namespace'];
+        } else {
+            $yafNS = array();
+        }
         $loader = Yaf_Loader::getInstance();
-            $loader->registerLocalNamespace(array("Library"));
+        $loader->registerLocalNamespace($yafNS);
     }
 
 	public function _initRoute(Yaf_Dispatcher $dispatcher) {
