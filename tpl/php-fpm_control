@@ -57,11 +57,11 @@ wait_for_pid () {
 
 case "$1" in
 	start)
-                if [ ! -d "$PHP_FPM_LOG" ]; then
+        if [ ! -d "$PHP_FPM_LOG" ]; then
 		    mkdir -p "$PHP_FPM_LOG"
 		fi
 
-                if [ ! -d "$PHP_FPM_VAR" ]; then
+        if [ ! -d "$PHP_FPM_VAR" ]; then
 		    mkdir -p "$PHP_FPM_VAR"
 		fi
 

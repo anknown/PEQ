@@ -6,7 +6,7 @@ PEQ_ROOT=${PEQ_ROOT}
 NGINX_HOME=$PEQ_ROOT/webserver
 NGINX_BIN=$NGINX_HOME/sbin/nginx
 PID_FILE=$PEQ_ROOT/var/nginx/nginx.pid
-NGINX_LOG="access_log error_log"
+NGINX_LOG="access.log error.log"
 
 #/etc/rc.d/init.d/functions
 

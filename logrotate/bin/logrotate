@@ -1,0 +1,373 @@
+#!/bin/bash 
+#set -e
+#FILENAME=$0
+#trap "echo Fail unexpectedly on line \$FILENAME:\$LINENO! $data" ERR
+
+
+PID=$$
+[[ -z $PID ]] && PID=1000
+
+VERSION="1.0.1"
+FILE_PATH=`readlink -f $0`
+
+FILE=logrotate
+LOG_DIR=${PEQ_ROOT}/log/logrotate/
+DATA_DIR=${PEQ_ROOT}/data/logrotate/
+CONF_DIR=${PEQ_ROOT}/conf/logrotate/
+
+#CUR_DIR=`dirname $FILE_PATH`
+#FILE=`basename $FILE_PATH`
+#LOG_DIR=$CUR_DIR/../log
+#DATA_DIR=$CUR_DIR/../data/
+#CONF_DIR=$CUR_DIR/../conf/
+
+CONF_FILE="$CONF_DIR/$FILE.conf"
+DATA_FILE="$DATA_DIR/$PID"
+
+# date +%Y%m%d%H%M%S   20140529164218
+_OSP_TOOL_LOG_FILE="$LOG_DIR/$FILE.log"
+#META_FILE="$HOME/program/meta.yaml"
+META_LAST_MODIFIED=0
+
+
+PATH=$CUR_DIR:$PATH
+export PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin
+
+#进行搜索的基础目录
+BASE_PATH="$HOME/"
+
+#保留的日志天数
+KEEP_DAY=5
+
+
+#删除一个日志文件，需要sleep的时间
+SLEEP_TIME=0
+
+#执行一次后，sleep的时间(300 s)
+#LOGROTATE_SLEEP=300
+
+#每次判断当前分钟数的时间间隔(60 s)
+#CHECK_SLEEP=60
+
+#匹配的日志类型
+LOG_LIST="access.log
+error.log
+log
+log.new
+log.wf
+log.wf.new"
+
+#搜索的日志路径
+DIR_LIST="log/
+log/*/
+.osp/log/
+*/log/
+*/log/*/
+ */*/log/
+ */*/log/*/
+"
+
+# DIR_MAP=("$HOME/.osp/log/" "$HOME/.omp/omp_rtlc/log/" "$HOME/.omp/proc_monitor/log/" "$HOME/program/log/")
+# KEEP_DAY_MAP=(6 6 6 6)
+DIR_MAP=("$HOME/env/log/")
+KEEP_DAY_MAP=(6)
+
+
+# date +%Y%m%d%H%M%S   20140529164218
+#获取当前的分钟数
+current_minute=""
+current_hour_timestamp=""
+#获取一个小时以前的整点时间
+log_timestamp=""
+#开始执行的时间
+start_time=""
+
+##全局变量
+DIR_LIST_STR=""
+LOG_LIST_STR=""
+LOG_LIST_STR_TIMESTAMP="" 
+CMD_LIST=""
+LOG_FILE_LIST=""
+
+function time_init()
+{
+    CURRENT_TIME=`date +%Y%m%d%H`
+
+    #获取当前的分钟数
+    current_minute=`date +%M`
+    current_hour_timestamp=$CURRENT_TIME."0000"
+    #获取一个小时以前的整点时间
+    log_timestamp=$(date --date="1 hour ago" +%Y%m%d%H)
+    #开始执行的时间
+    start_time=`date +%s`
+}
+
+usage()
+{
+    cat <<"EOT";
+unit-logrotate  
+    
+Usage: [-options]
+    -f       Force to logrotate log, won't care whether the current time is in [ 00 ~ 02 ], and exit after complete.
+    -b       Logrotate action only execute in first two minutes(00~02) of each hour. This script will not exit after one logrotate, it will sleep until arrival the next hour first two minutes.
+
+EOT
+echo "Version: $VERSION"
+echo 
+}
+
+function osp_log_debug() 
+{
+    echo `date +"DEBUG[$PID]: [%Y-%m-%d %k:%M:%S "` "$1" >> $_OSP_TOOL_LOG_FILE
+    [[ $2 == "echo" ]] && echo $1
+}
+
+###初始化
+#0.136
+function init()
+{
+
+    #初始化时间函数
+    #0.01
+    time_init
+    #0.22
+
+    osp_log_debug "$0 $*"
+    osp_log_debug "--------------------------"
+    osp_log_debug "current_minute = [$current_minute] and log_timestamp = [$log_timestamp] "
+
+    ##读取配置文件unit-logrotate.yaml
+    echo -n "" > $DATA_FILE
+    if [[ -f $CONF_FILE ]]
+    then
+        config_list=""
+        grep -iE "^[^#^:]*HOME"  $CONF_FILE | sed -e "s/://g" | while read conf_line
+        do 
+            temp_dir=`echo "$conf_line" | awk '{print $1}'`
+            temp_dir=`eval echo ${temp_dir} 2>/dev/null`
+            keep_day=`echo "$conf_line" | awk '{print $2}'`
+            osp_log_debug "conf_line = $conf_line temp_dir = $temp_dir and keep_day = $keep_day"
+            for dir_name in $temp_dir
+            do
+                echo "$dir_name $keep_day" >> $DATA_FILE
+  #              echo $keep_day
+            done
+        done
+    
+        keep_day=`grep -E "^[^#^:]*keep_day" $CONF_FILE | awk '{print $2}' | head -1`
+        if [[ "$keep_day" =~ "^[0-9]+$" && $keep_day -gt 0 ]]
+        then
+            KEEP_DAY=$keep_day
+        fi
+    else
+        osp_log_debug "[Warning] Conf file [$CONF_FILE] is not exists !"
+    fi
+    osp_log_debug "get log keep_day is [$KEEP_DAY]"
+    # 0.1
+
+    i=0
+    length=${#DIR_MAP[*]}
+    while [ $i -lt $length ] 
+    do
+        temp_dir=${DIR_MAP[$i]}
+        keep_day=${KEEP_DAY_MAP[$i]}
+        echo "$temp_dir $keep_day" >> $DATA_FILE
+        let i++
+    done
+    config=`cat $DATA_FILE`
+    osp_log_debug "keep_day conf is:"$config
+
+    #根据配置的DIR_LIST 生成所有匹配的路径
+    DIR_LIST_STR=`cat $DATA_FILE | awk '{print $1}' | sort | uniq | tr '\n' ' '`
+
+    ##生成要匹配日志文件的正则表达式 
+    LOG_LIST_STR=""
+    for file in ${LOG_LIST}
+    do
+        #转义 "." --> "\."
+        file=${file//\./\\\.}
+        if [[ -z $LOG_LIST_STR ]]
+        then
+            LOG_LIST_STR=$file
+        else
+            LOG_LIST_STR="${LOG_LIST_STR}\|$file"
+        fi
+    done
+
+    #".*\(access_log\|error_log\|\.log\|\.log.wf\)"
+    LOG_LIST_STR=".*\(${LOG_LIST_STR}\)"
+
+    #以数字为后缀的历史日志 [2014050912]
+    LOG_LIST_STR_TIMESTAMP="${LOG_LIST_STR}.\(new.\)?20[0-9]*" 
+
+    osp_log_debug "DIR_LIST_STR= [$DIR_LIST_STR] and LOG_LIST_STR = [$LOG_LIST_STR] and LOG_LIST_STR_TIMESTAMP = [$LOG_LIST_STR_TIMESTAMP]"
+}
+
+
+##执行后置命令
+function run_cmd()
+{
+    if [[ -f $CONF_FILE ]]
+    then
+        grep -E "^[^#^:]*control_cmd" $CONF_FILE | awk -F':' '{print $2}' | while read cmd
+        do
+            osp_log_debug "[Notice] Start to run cmd [$cmd]:"
+#        cmd="$cmd >> $_OSP_TOOL_LOG_FILE 2>&1"
+            eval $cmd >> $_OSP_TOOL_LOG_FILE 2>&1
+            osp_log_debug "[Notice] Finished to run cmd [$cmd] and ret is [$?]"
+        done
+    else
+        osp_log_debug "[Warning] There is no conf file [$CONF_FILE], skip run cmd step!"
+    fi
+}
+
+function rorate_log()
+{
+    file_name=$1
+    [[ -f $file_name ]] || return
+
+    #获取日志不带日期后缀的名字
+    log_file_name=${file_name%%\.[0-9]*}
+    
+    #判断文件是否已经处于切分状态,数字结尾
+    regex="201[0-9\-]*$" 
+
+    if [[ "$file_name" = "${file_name/$regex}" ]]
+    then
+        #不包含数字后缀
+        # 生成需要切分日志的名字 /home/arch/pusher-tieba-app/log/pusher.log.20140529190000
+        timestamp_file_name="${log_file_name}.${log_timestamp}"
+
+        if [ ! -f $timestamp_file_name ]
+        then
+            #切分日志
+            osp_log_debug "Rorate File! $file_name ---> $timestamp_file_name in [$file_dirname]"
+            mv $file_name $timestamp_file_name
+        fi
+    fi
+    
+}
+
+
+
+#删除某一个文件夹下的过期日志
+function clear_log()
+{
+    dir=$1
+    clear_day=$2
+    if [ ! -d $dir ]
+    then
+        osp_log_debug "[$dir] is not a dir! exit to clear log!"
+        return 1
+    fi
+    #只查找带数字后缀的过期日志文件
+
+    del_file=""
+    for log_file in `find $dir -regex "$LOG_LIST_STR_TIMESTAMP" -mtime +${clear_day} -maxdepth 1`
+    do 
+        del_file="$del_file $log_file"
+        rm -f $log_file
+        #sleep 一会 避免占用io
+        sleep $SLEEP_TIME
+    done
+    osp_log_debug "del $dir cmd is [find $dir -regex \"$LOG_LIST_STR_TIMESTAMP\" -mtime +${clear_day} -maxdepth 1] and file list is [$del_file]"
+}
+
+#检测是否已经有该脚本在执行
+function check_logrotate_pid()
+{
+    #获取pid
+    pid_array=`ps -eLf | grep "sh.*${FILE}" | grep -v supervise | grep -v grep | awk '{print $2}'`
+    #获取自身pid
+    pid_array="$$ $pid_array"
+    osp_log_debug "pid_array = $pid_array --"
+    cd $DATA_DIR
+    for pid_file in `ls *`
+    do
+        if ! echo $pid_array | grep -q $pid_file
+        then
+            rm -f $pid_file
+        fi
+    done
+}
+
+
+function main()
+{
+    #执行初始化函数
+    #0.013
+    init
+
+    #0.11
+
+    awk '!($1 in a){a[$1];print $0}' $DATA_FILE | while read conf_line
+    do
+        conf_dir=`echo $conf_line | awk '{print $1}'`
+        keep_day=`echo $conf_line | awk '{print $2}'`
+        osp_log_debug "check conf_dir = $conf_dir and keep_day = $keep_day"
+        if [[ -d $conf_dir ]]
+        then
+            log_file=`ls $conf_dir |  grep "$LOG_LIST_STR\$"`
+            osp_log_debug "get $conf_dir log list ret is [$log_file]"
+            for file in $log_file
+            do
+                filename="${conf_dir}/${file}"
+                log_dir=$conf_dir
+                if [[ -h $filename ]] 
+                then
+                    ##这是一个软链
+                    real_filename=$(readlink -f $filename)
+                    log_dir=`dirname $real_filename 2>/dev/null`
+                    rorate_log $real_filename
+                    touch $filename
+                    osp_log_debug "[Debug $filename is a symlink file, link to $real_filename, touch it!]"
+                    clear_log $log_dir $keep_day
+                else
+                    rorate_log $filename
+                fi
+            done
+            clear_log $conf_dir $keep_day
+        elif [[ -f $conf_dir ]]
+        then
+            filename=$(readlink -f $conf_dir)
+            log_dir=`dirname $filename`
+            rorate_log $filename
+            clear_log $log_dir $keep_day
+        else
+            osp_log_debug "[Warning] dir [$conf_dir] is not exists !"
+        fi
+    done
+
+
+    #执行后置命令
+    run_cmd
+    
+    check_logrotate_pid
+
+    end_time=`date +%s`
+    run_time=$((end_time-start_time))
+    osp_log_debug "[Notice] Succees to finish logrotate and clear , run time is [$run_time] s"
+}
+
+function logrotate_force()
+{
+    main
+}
+
+##创建日志文件夹
+[[ ! -d $LOG_DIR ]] && mkdir -p $LOG_DIR
+[[ ! -d $DATA_DIR ]] && mkdir -p $DATA_DIR
+[[ ! -d $CONF_DIR ]] && mkdir -p $CONF_DIR
+Option=${1:1:1}
+
+case $Option in
+    f ) logrotate_force;;
+    h ) usage;;
+    i ) init;;
+    * ) usage;;
+esac
+
+
+echo "OK!"
+exit 0
+

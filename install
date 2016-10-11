@@ -275,14 +275,29 @@ function install_curl(){
 	done
 }
 
+function install_logrotate(){
+    cp $PWD/logrotate/bin/logrotate ${PREFIX}/bin 2>>$WF_LOG
+    cp $PWD/logrotate/conf/logrotate.conf ${PREFIX}/conf/logrotate 2>>$WF_LOG
+    
+    if [ $(uname) == 'Darwin' ]; then
+    	sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/logrotate/logrotate.conf 2>>$WF_LOG
+    	sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/bin/logrotate 2>>$WF_LOG
+    else
+    	sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/logrotate/logrotate.conf 2>>$WF_LOG
+    	sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/bin/logrotate 2>>$WF_LOG
+    fi
+    
+    echo "Install LogRotate Done, Please add to crontabe: \"# 1 * * * * cd ${PREFIX}/bin && bash logrotate -f\""
+}
+
 function install_demo(){
 	cp -r $PWD/demo/app/* ${PREFIX}/app
 	mkdir -p ${PREFIX}/conf/app && cp -r $PWD/demo/conf/app/* ${PREFIX}/conf/app 
 
 	if [ $(uname) == 'Darwin' ]; then
-		sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/app/helloworld/yaf.ini 1>>$LOG 2>>$WF_LOG
+		sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/app/helloworld/yaf.ini 2>>$WF_LOG
 	else
-		sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/app/helloworld/yaf.ini 1>>$LOG 2>>$WF_LOG
+		sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/app/helloworld/yaf.ini 2>>$WF_LOG
 	fi
 	cp -r $PWD/demo/webroot/* ${PREFIX}/webroot
       
@@ -312,8 +327,13 @@ fi
 mkdir -p ${PREFIX}
 mkdir -p ${PREFIX}/app
 mkdir -p ${PREFIX}/conf
+mkdir -p ${PREFIX}/conf/logrotate
 mkdir -p ${PREFIX}/data
+mkdir -p ${PREFIX}/data/logrotate
 mkdir -p ${PREFIX}/log
+mkdir -p ${PREFIX}/log/webserver
+mkdir -p ${PREFIX}/log/php
+mkdir -p ${PREFIX}/log/logrotate
 mkdir -p ${PREFIX}/php
 mkdir -p ${PREFIX}/php/etc/ext
 cp -r ./phplib ${PREFIX}/php/
@@ -322,20 +342,24 @@ mkdir -p ${PREFIX}/webserver
 mkdir -p ${PREFIX}/var
 mkdir -p ${PREFIX}/var/nginx
 mkdir -p ${PREFIX}/var/php
+mkdir -p ${PREFIX}/bin
 
 init
 
+#if [ ! -s "$WF_LOG" ]; then
+#    install_nginx
+#fi
+#if [ ! -s "$WF_LOG" ]; then
+#    install_php
+#fi
+#if [ ! -s "$WF_LOG" ]; then
+#    install_yaf
+#fi
+#if [ ! -s "$WF_LOG" ]; then
+#    install_curl
+#fi
 if [ ! -s "$WF_LOG" ]; then
-    install_nginx
-fi
-if [ ! -s "$WF_LOG" ]; then
-    install_php
-fi
-if [ ! -s "$WF_LOG" ]; then
-    install_yaf
-fi
-if [ ! -s "$WF_LOG" ]; then
-    install_curl
+    install_logrotate
 fi
 if [ ! -s "$WF_LOG" ]; then
     install_demo
