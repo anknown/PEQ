@@ -49,50 +49,50 @@
                 + php
     
 
-##### Env
+#### Env
 
 * PHP `5.4`
 * Nginx `1.9`
 
 Tested on `Centos 6.4`
 
-#### BaseLibrary
+#### Base Librarys
 
-`Base_AppEnv` 环境库，用户获取当前应用名称，路径等
+* `Base_AppEnv` 环境库，用户获取当前应用名称，路径等
 
-`Base_Conf`
+* `Base_Conf`
 读取配置文件库，PEQ使用toml格式作为配置文件格式，[toml@github](https://github.com/toml-lang/toml)
 
-`Base_Log` 日志文件库
+* `Base_Log` 日志文件库
 
-`Base_DB` 数据库访问库，支持多集群，多机器配置
+* `Base_DB` 数据库访问库，支持多集群，多机器配置
 
-`Base_AppCall` 跨子系统访问库，允许一个app调用其它app的接口
+* `Base_AppCall` 跨子系统访问库，允许一个app调用其它app的接口
 
 #### Usage
 
-*install*   
+##### install  
     
     bash install --prefix=$PEG_ROOT_PATH
 
-*Library Dependencies*
+##### Library Dependencies
 
 * pecl
 * re2c 0.13.4以上版本
 * libiconv
 * libcurl
 
-*Testing Env*
+##### Testing Env
 
     Linux：gcc 版本 4.4.7 20120313 (Red Hat 4.4.7-4) (GCC)
 
     Darwin: Apple LLVM version 8.0.0 (clang-800.0.38) (OSX版本不支持iconv，需要手动安装扩展)
 
-*start nginx*
+##### start nginx
 
     bash $PEG_ROOT_PATH/webserver/nginx_control start
 
-*start php*
+##### start php
     
     bash $PEG_ROOT_PATH/php/php-fpm_control start
 
