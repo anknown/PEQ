@@ -59,10 +59,14 @@ Tested on `Centos 6.4`
 #### BaseLibrary
 
 `Base_AppEnv` 环境库，用户获取当前应用名称，路径等
+
 `Base_Conf`
 读取配置文件库，PEQ使用toml格式作为配置文件格式，[toml@github](https://github.com/toml-lang/toml)
+
 `Base_Log` 日志文件库
+
 `Base_DB` 数据库访问库，支持多集群，多机器配置
+
 `Base_AppCall` 跨子系统访问库，允许一个app调用其它app的接口
 
 #### Usage
@@ -80,11 +84,9 @@ Tested on `Centos 6.4`
 
 *Testing Env*
 
-已通过以下测试环境
-
     Linux：gcc 版本 4.4.7 20120313 (Red Hat 4.4.7-4) (GCC)
 
-    Darwin: Apple LLVM version 8.0.0 (clang-800.0.38) (`注`,OSX版本不支持iconv，需要手动安装扩展)
+    Darwin: Apple LLVM version 8.0.0 (clang-800.0.38) (OSX版本不支持iconv，需要手动安装扩展)
 
 *start nginx*
 
