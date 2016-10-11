@@ -1,7 +1,9 @@
 #!/bin/bash
+set -ue
+
 function usage() {
 	echo "Usage:"
-	echo "    bash ./install_peq --prefix=\$YOUR_PATH";
+	echo "    bash ./install --prefix=\$YOUR_PATH";
 	exit 1
 }
 
@@ -10,212 +12,280 @@ PHP_INSTALL_STATE=/tmp/php.install.state
 YAF_INSTALL_STATE=/tmp/yaf.install.state
 CURL_INSTALL_STATE=/tmp/curl.install.state
 
+LOG=/tmp/install.log
+WF_LOG=/tmp/install.log.wf
+
+function init(){
+	touch $LOG
+	touch $WF_LOG
+	cat /dev/null > $LOG
+	cat /dev/null > $WF_LOG
+
+    touch $NGINX_INSTALL_STATE
+    touch $PHP_INSTALL_STATE
+    touch $YAF_INSTALL_STATE
+    touch $CURL_INSTALL_STATE
+    echo '-' > $NGINX_INSTALL_STATE
+    echo '-' > $PHP_INSTALL_STATE
+    echo '-' > $YAF_INSTALL_STATE
+    echo '-' > $CURL_INSTALL_STATE
+}
+
 function install_nginx(){
 	{
+		_DIR=/tmp/nginx
+	
 		pushd $PWD >/dev/null
-		cd package
-
-		_TAR=$(ls nginx*.tar.gz);
-		if [ $? -ne 0 ]; then
-			exit $?
-		fi
-		_DIR=$(tar zvxf $_TAR);
-		if [ $? -ne 0 ]; then
-			exit $?
-		fi
-
-		if [ -f "$NGINX_INSTALL_STATE" ]; then
-    		rm -f $NGINX_INSTALL_STATE
-		fi
-
-		cd $_DIR && ./configure --prefix=${PREFIX}/webserver &>>/tmp/install.log
+		cd package 2>>$WF_LOG
+	
+		_TAR=$(ls nginx*.tar.gz 2>>$WF_LOG);
+		mkdir -p $_DIR 2>>$WF_LOG && tar zxf $_TAR -C $_DIR 2>>$WF_LOG
+	
+		_DIR=$_DIR/$(ls $_DIR);
+		cd $_DIR 2>>$WF_LOG
+		./configure --prefix=${PREFIX}/webserver 1>>$LOG 2>>$WF_LOG
 		
-		make -j8 &>>/tmp/install.log && make install &>>/tmp/install.log
-
+		make -j 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+	
 		popd >/dev/null
-		cp tpl/nginx.conf ${PREFIX}/webserver/conf && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/webserver/conf/nginx.conf
-		cp tpl/nginx_control ${PREFIX}/webserver && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/webserver/nginx_control
+		cp tpl/nginx.conf ${PREFIX}/webserver/conf
+		cp tpl/nginx_control ${PREFIX}/webserver
 		cp tpl/fastcgi.conf ${PREFIX}/webserver/conf
 		cp tpl/fastcgi_params ${PREFIX}/webserver/conf
-		echo "done" > $NGINX_INSTALL_STATE
-	}&
 
-    NGINX_IS__DONE="0"
-    while :
-    do
-        for j in '-' '\\' '|' '/'; do
-             tput sc
-             echo -ne  "Installing Nginx, Please wait....... $j"
-             sleep 0.1
-             tput rc
-            
-             if [ -f "$NGINX_INSTALL_STATE" ]; then
-                 rm -f $NGINX_INSTALL_STATE
-                 echo "Install Nginx Done                                         "
-                 NGINX_IS_DONE="1"
-                 break
-             fi
-        done
-        if [ "$NGINX_IS_DONE" = "1" ]; then
-            break
-        fi
-    done
+		if [ $(uname) == 'Darwin' ]; then
+			sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/webserver/conf/nginx.conf 1>>$LOG 2>>$WF_LOG
+			sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/webserver/nginx_control 1>>$LOG 2>>$WF_LOG
+		else
+			sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/webserver/conf/nginx.conf 1>>$LOG 2>>$WF_LOG
+			sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/webserver/nginx_control 1>>$LOG 2>>$WF_LOG
+		fi
+
+		echo $? > $NGINX_INSTALL_STATE
+	}&
+	
+	NGINX_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing Nginx, Please wait....... $j"
+			sleep 0.1
+			tput rc
+			
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $NGINX_INSTALL_STATE
+				NGINX_IS_DONE="2"
+				break
+			fi
+			if [ -f "$NGINX_INSTALL_STATE" ] && [ $(cat $NGINX_INSTALL_STATE) != '-' ]; then
+				echo "Install Nginx Done                          "
+                echo '-' > $NGINX_INSTALL_STATE
+				NGINX_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$NGINX_IS_DONE" = "1" ] || [ "$NGINX_IS_DONE" = "2" ]; then
+			break
+		fi
+	done
 }
 
 function install_php(){
 	{
+		_DIR=/tmp/php
+
 		pushd $PWD >/dev/null
-		cd package
+		cd package 2>>$WF_LOG
 
-		_TAR=$(ls php*.tar.gz);
-		if [ $? -ne 0 ]; then
-			exit $?
+		_TAR=$(ls php*.tar.gz 2>>$WF_LOG);
+		mkdir -p $_DIR 2>>$WF_LOG && tar zxf $_TAR -C $_DIR 2>>$WF_LOG
+
+		_DIR=$_DIR/$(ls $_DIR);
+		cd $_DIR 2>>$WF_LOG
+
+		if [ $(uname) == 'Darwin' ]; then
+			./configure --prefix=${PREFIX}/php --without-iconv --with-mysqli --with-mysql --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc  --enable-fpm --disable-phar CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>>$WF_LOG
+		else
+			./configure --prefix=${PREFIX}/php --with-mysqli --with-mysql --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc  --enable-fpm --disable-phar 1>>$LOG 2>>$WF_LOG
+		
 		fi
-		_DIR=$(tar zvxf $_TAR);
-		if [ $? -ne 0 ]; then
-			exit $?
-		fi
 
-		if [ -f "$PHP_INSTALL_STATE" ]; then
-    		rm -f $PHP_INSTALL_STATE
-		fi
-
-		cd $_DIR && ./configure --prefix=${PREFIX}/php --with-mysqli --with-mysql --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc  --enable-fpm &>>/tmp/install.log 
-
-		make -j8 &>>/tmp/install.log && make install &>>/tmp/install.log
-
+		make -j 1>>$LOG 2>>$WF_LOG
+		make install 1>>$LOG 2>>$WF_LOG
 		popd >/dev/null
 
 		mv ${PREFIX}/php/etc/php-fpm.conf.default ${PREFIX}/php/etc/php-fpm.conf
 
-		cp tpl/php.ini $PREFIX/php/etc && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/php/etc/php.ini 
+		cp tpl/php.ini $PREFIX/php/etc 
+		cp tpl/php-fpm_control ${PREFIX}/php 
+		cp tpl/php-fpm.conf ${PREFIX}/php/etc 
 
-		cp tpl/php-fpm_control ${PREFIX}/php && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/php-fpm_control
+		if [ $(uname) == 'Darwin' ]; then
+			sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/php/etc/php.ini 1>>$LOG 2>>$WF_LOG
+			sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/php-fpm_control 1>>$LOG 2>>$WF_LOG
+			sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/etc/php-fpm.conf 1>>$LOG 2>>$WF_LOG
+		else
+			sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/php/etc/php.ini 1>>$LOG 2>>$WF_LOG
+			sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/php-fpm_control 1>>$LOG 2>>$WF_LOG
+			sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/etc/php-fpm.conf 1>>$LOG 2>>$WF_LOG
+		fi
 
-		cp tpl/php-fpm.conf ${PREFIX}/php/etc && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/etc/php-fpm.conf
-
-		echo "done" > $PHP_INSTALL_STATE
+		echo $? > $PHP_INSTALL_STATE
 	}&
 
-    PHP_IS__DONE="0"
-    while :
-    do
-        for j in '-' '\\' '|' '/'; do
-             tput sc
-             echo -ne  "Installing PHP, Please wait....... $j"
-             sleep 0.1
-             tput rc
-            
-             if [ -f "$PHP_INSTALL_STATE" ]; then
-                 rm -f $PHP_INSTALL_STATE
-                 echo "Install PHP Done                                         "
-                 PHP_IS_DONE="1"
-                 break
-             fi
-        done
-        if [ "$PHP_IS_DONE" = "1" ]; then
-            break
-        fi
-    done
+	PHP_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing PHP, Please wait....... $j"
+			sleep 0.1
+			tput rc
+			
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $PHP_INSTALL_STATE
+				PHP_IS_DONE="2"
+				break
+			fi
+			if [ -f "$PHP_INSTALL_STATE" ] && [ $(cat $PHP_INSTALL_STATE) != '-' ]; then
+				echo "Install PHP Done                          "
+                echo '-' > $PHP_INSTALL_STATE
+				PHP_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$PHP_IS_DONE" = "1" ] || [ "$PHP_IS_DONE" = "2" ]; then
+		    break
+		fi
+	done
 }
 
 function install_yaf(){
 	{
+		sleep 3
+
+		_DIR=/tmp/yaf
+
 		pushd $PWD >/dev/null
-		cd package
+		cd package 2>>$WF_LOG
 
-		_TAR=$(ls yaf*.tar.gz);
-		if [ $? -ne 0 ]; then
-			exit $?
-		fi
-		_DIR=$(tar zvxf $_TAR);
-		if [ $? -ne 0 ]; then
-			exit $?
-		fi
+		_TAR=$(ls yaf*.tar.gz 2>>$WF_LOG);
+		mkdir -p $_DIR 2>>$WF_LOG && tar zxf $_TAR -C $_DIR 2>>$WF_LOG
 
-		_DIR=$(echo $_TAR | awk -F. '{print $1"."$2"."$3}')
-
-		if [ -f "$YAF_INSTALL_STATE" ]; then
-    		rm -f $YAF_INSTALL_STATE
-		fi
-
-		cd $_DIR && ${PREFIX}/php/bin/phpize &>>/tmp/install.log && ./configure --with-php-config=${PREFIX}/php/bin/php-config &>>/tmp/install.log
+		_DIR=$_DIR/$(ls $_DIR | grep yaf)
+		cd $_DIR 2>>$WF_LOG
+		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
+		./configure --with-php-config=${PREFIX}/php/bin/php-config  1>>$LOG 2>>$WF_LOG
 		
-		make -j8 &>>/tmp/install.log && make install &>>/tmp/install.log
+		make -j 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
 
 		popd >/dev/null
 
-		cp tpl/yaf.ini $PREFIX/php/etc/ext && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/php/etc/ext/yaf.ini
-		echo "done" > $YAF_INSTALL_STATE
+		cp tpl/yaf.ini $PREFIX/php/etc/ext
+
+		if [ $(uname) == 'Darwin' ]; then
+			sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/php/etc/ext/yaf.ini 1>>$LOG 2>>$WF_LOG
+		else
+			sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/php/etc/ext/yaf.ini 1>>$LOG 2>>$WF_LOG
+		fi
+
+		echo $? > $YAF_INSTALL_STATE
 	}&
 
-    YAF_IS__DONE="0"
-    while :
-    do
-        for j in '-' '\\' '|' '/'; do
-             tput sc
-             echo -ne  "Installing Yaf, Please wait....... $j"
-             sleep 0.1
-             tput rc
-            
-             if [ -f "$YAF_INSTALL_STATE" ]; then
-                 rm -f $YAF_INSTALL_STATE
-                 echo "Install Yaf Done                                         "
-                 YAF_IS_DONE="1"
-                 break
-             fi
-        done
-        if [ "$YAF_IS_DONE" = "1" ]; then
-            break
-        fi
-    done
+	YAF_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing Yaf, Please wait....... $j"
+			sleep 0.1
+			tput rc
+			
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $YAF_INSTALL_STATE
+				YAF_IS_DONE="2"
+				break
+			fi
+			if [ -f "$YAF_INSTALL_STATE" ] && [ $(cat $YAF_INSTALL_STATE) != '-' ]; then
+				echo "Install yaf Done                          "
+                echo '-' > $YAF_INSTALL_STATE
+				YAF_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$YAF_IS_DONE" = "1" ] || [ "$YAF_IS_DONE" = "2" ]; then
+			break
+		fi
+	done
 }
 
 function install_curl(){
 	{
+		sleep 3
+
 		pushd $PWD >/dev/null
-		cd package/php*
+		cd /tmp/php/php* 2>>$WF_LOG
 
-		if [ -f "$CURL_INSTALL_STATE" ]; then
-    		rm -f $CURL_INSTALL_STATE
+		cd ext/curl 2>>$WF_LOG
+		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
+		else
+			./configure --with-php-config=${PREFIX}/php/bin/php-config 1>>$LOG 2>>$WF_LOG
 		fi
-
-		cd ext/curl && ${PREFIX}/php/bin/phpize &>>/tmp/install.log && ./configure --with-php-config=${PREFIX}/php/bin/php-config &>>/tmp/install.log
 		
-		make -j8 &>>/tmp/install.log && make install &>>/tmp/install.log
+		make -j 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
 
 		popd >/dev/null
 
 		cp tpl/curl.ini $PREFIX/php/etc/ext
-		echo "done" > $CURL_INSTALL_STATE
+
+		echo $? > $CURL_INSTALL_STATE
 	}&
 
-    CURL_IS__DONE="0"
-    while :
-    do
-        for j in '-' '\\' '|' '/'; do
-             tput sc
-             echo -ne  "Installing cURL, Please wait....... $j"
-             sleep 0.1
-             tput rc
-            
-             if [ -f "$CURL_INSTALL_STATE" ]; then
-                 rm -f $CURL_INSTALL_STATE
-                 echo "Install cURL Done                                         "
-                 CURL_IS_DONE="1"
-                 break
-             fi
-        done
-        if [ "$CURL_IS_DONE" = "1" ]; then
-            break
-        fi
-    done
+	CURL_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing cURL, Please wait....... $j"
+		    sleep 0.1
+		    tput rc
+		    
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $CURL_INSTALL_STATE
+				CURL_IS_DONE="2"
+				break
+			fi
+			if [ -f "$CURL_INSTALL_STATE" ] && [ $(cat $CURL_INSTALL_STATE) != '-' ]; then
+				echo "Install cURL Done                          "
+                echo '-' > $CURL_INSTALL_STATE
+				CURL_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$CURL_IS_DONE" = "1" ] || [ "$CURL_IS_DONE" = "2" ]; then
+			break
+		fi
+	done
 }
 
 function install_demo(){
 	cp -r $PWD/demo/app/* ${PREFIX}/app
-	mkdir -p ${PREFIX}/conf/app && cp -r $PWD/demo/conf/app/* ${PREFIX}/conf/app && sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/app/helloworld/yaf.ini
+	mkdir -p ${PREFIX}/conf/app && cp -r $PWD/demo/conf/app/* ${PREFIX}/conf/app 
+
+	if [ $(uname) == 'Darwin' ]; then
+		sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/app/helloworld/yaf.ini 1>>$LOG 2>>$WF_LOG
+	else
+		sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/conf/app/helloworld/yaf.ini 1>>$LOG 2>>$WF_LOG
+	fi
 	cp -r $PWD/demo/webroot/* ${PREFIX}/webroot
+      
 	echo "Install Demo Done"
 }
 
@@ -238,9 +308,6 @@ elif [ ${PREFIX} == "--prefix" ]; then
 	echo "Please assign install prefix path!"
 fi
 
-if [ -e /tmp/install.log ]; then
-	rm /tmp/install.log
-fi
 
 mkdir -p ${PREFIX}
 mkdir -p ${PREFIX}/app
@@ -256,8 +323,24 @@ mkdir -p ${PREFIX}/var
 mkdir -p ${PREFIX}/var/nginx
 mkdir -p ${PREFIX}/var/php
 
-install_nginx
-install_php
-install_yaf
-install_curl
-install_demo
+init
+
+if [ ! -s "$WF_LOG" ]; then
+    install_nginx
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_php
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_yaf
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_curl
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_demo
+fi
+
+if [ ! -s "$WF_LOG" ]; then
+    echo "=====> Install PEQ Done"
+fi
