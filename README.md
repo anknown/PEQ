@@ -80,10 +80,11 @@ Tested on `Centos 6.4`
 
 *Testing Env*
 
-已通过一下测试环境
+已通过以下测试环境
 
-Linux：gcc 版本 4.4.7 20120313 (Red Hat 4.4.7-4) (GCC)
-Darwin: Apple LLVM version 8.0.0 (clang-800.0.38) (`注`,OSX版本不支持iconv，需要手动安装扩展)
+    Linux：gcc 版本 4.4.7 20120313 (Red Hat 4.4.7-4) (GCC)
+
+    Darwin: Apple LLVM version 8.0.0 (clang-800.0.38) (`注`,OSX版本不支持iconv，需要手动安装扩展)
 
 *start nginx*
 
