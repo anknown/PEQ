@@ -18,25 +18,31 @@
                     + library
                     + plugins
                     + views
+            + bin 
+                - logrotate //日志切分程序
             + conf //配置
                 + app
                     + helloworld //helloworld 相关配置目录
                         - log.toml //日志库配置
                         - db.toml //数据库配置
                         - yaf.ini //yaf配置
+                + logrotate
+                    - logrotate.conf //日志切分程序配置
             + data
                 + app
-                    + helloworld //helloworld 相关数据目录
+                    + helloworld //demo数据目录
             + log
                 - php-error.log //PHP日志
-                - access.log //nginx access日志
-                - error.log //nginx error日志
-                - helloworld //helloworld 相关日志 
+                - access.log //nginx access日志（软链）
+                - error.log //nginx error日志（软链）
+                - helloworld //demo相关日志
+                + webserver //nginx日志
+                + php //php日志
             + php
             + webroot
                 + helloworld
-                    - index.php //helloworld 入口文件
-                + static //静态文件 
+                    - index.php //demo入口文件
+                + static //静态文件目录 
             + webserver
             + var
                 + nginx
@@ -65,6 +71,20 @@ Tested on `Centos 6.4`
     
     bash install --prefix=$PEG_ROOT_PATH
 
+*依赖库*
+
+* pecl
+* re2c 0.13.4以上版本
+* libiconv
+* libcurl
+
+*测试环境*
+
+已通过一下测试环境
+
+Linux：gcc 版本 4.4.7 20120313 (Red Hat 4.4.7-4) (GCC)
+Darwin: Apple LLVM version 8.0.0 (clang-800.0.38) (`注`,OSX版本不支持iconv，需要手动安装扩展)
+
 *start nginx*
 
     bash $PEG_ROOT_PATH/webserver/nginx_control start
@@ -75,3 +95,8 @@ Tested on `Centos 6.4`
 
 默认使用8081接口，启动完成后，浏览器输入 http://ip:port/helloworld/sample，即访问*helloworld*
 app中的*sample* action
+
+
+#### License
+
+MIT LICESE
