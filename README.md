@@ -71,14 +71,14 @@ Tested on `Centos 6.4`
     
     bash install --prefix=$PEG_ROOT_PATH
 
-*依赖库*
+*Library Dependencies*
 
 * pecl
 * re2c 0.13.4以上版本
 * libiconv
 * libcurl
 
-*测试环境*
+*Testing Env*
 
 已通过一下测试环境
 
