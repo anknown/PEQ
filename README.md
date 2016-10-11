@@ -96,7 +96,7 @@ Tested on `Centos 6.4`
     
     bash $PEG_ROOT_PATH/php/php-fpm_control start
 
-默认使用8081接口，启动完成后，浏览器输入 http://ip:port/helloworld/sample，即访问*helloworld*
+默认使用8081接口，启动完成后，浏览器输入 http://ip:port/helloworld/api/sample，即访问*helloworld*
 app中的*sample* action
 
 
