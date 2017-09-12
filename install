@@ -11,6 +11,13 @@ NGINX_INSTALL_STATE=/tmp/nginx.install.state
 PHP_INSTALL_STATE=/tmp/php.install.state
 YAF_INSTALL_STATE=/tmp/yaf.install.state
 CURL_INSTALL_STATE=/tmp/curl.install.state
+MSGPACK_INSTALL_STATE=/tmp/msgpack.install.state
+MBSTRING_INSTALL_STATE=/tmp/mbstring.install.state
+REDIS_INSTALL_STATE=/tmp/redis.install.state
+GD_INSTALL_STATE=/tmp/gd.install.state
+OPENSSL_INSTALL_STATE=/tmp/openssl.install.state
+ZLIB_INSTALL_STATE=/tmp/zlib.install.state
+ZIP_INSTALL_STATE=/tmp/zip.install.state
 
 LOG=/tmp/install.log
 WF_LOG=/tmp/install.log.wf
@@ -25,10 +32,24 @@ function init(){
     touch $PHP_INSTALL_STATE
     touch $YAF_INSTALL_STATE
     touch $CURL_INSTALL_STATE
+    touch $MSGPACK_INSTALL_STATE
+    touch $MBSTRING_INSTALL_STATE
+    touch $REDIS_INSTALL_STATE
+    touch $GD_INSTALL_STATE
+    touch $OPENSSL_INSTALL_STATE
+    touch $ZLIB_INSTALL_STATE
+    touch $ZIP_INSTALL_STATE
     echo '-' > $NGINX_INSTALL_STATE
     echo '-' > $PHP_INSTALL_STATE
     echo '-' > $YAF_INSTALL_STATE
     echo '-' > $CURL_INSTALL_STATE
+    echo '-' > $MSGPACK_INSTALL_STATE
+    echo '-' > $MBSTRING_INSTALL_STATE
+    echo '-' > $REDIS_INSTALL_STATE
+    echo '-' > $GD_INSTALL_STATE
+    echo '-' > $OPENSSL_INSTALL_STATE
+    echo '-' > $ZLIB_INSTALL_STATE
+    echo '-' > $ZIP_INSTALL_STATE
 }
 
 function install_nginx(){
@@ -43,7 +64,7 @@ function install_nginx(){
 	
 		_DIR=$_DIR/$(ls $_DIR);
 		cd $_DIR 2>>$WF_LOG
-		./configure --prefix=${PREFIX}/webserver 1>>$LOG 2>>$WF_LOG
+		./configure --prefix=${PREFIX}/webserver --with-http_ssl_module 1>>$LOG 2>>$WF_LOG
 		
 		make -j 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
 	
@@ -106,30 +127,34 @@ function install_php(){
 		cd $_DIR 2>>$WF_LOG
 
 		if [ $(uname) == 'Darwin' ]; then
-			./configure --prefix=${PREFIX}/php --without-iconv --with-mysqli --with-mysql --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc  --enable-fpm --disable-phar CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>>$WF_LOG
+			./configure --prefix=${PREFIX}/php --without-iconv --with-mysqli --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc  --enable-fpm --disable-phar CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>>$WF_LOG
 		else
-			./configure --prefix=${PREFIX}/php --with-mysqli --with-mysql --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc  --enable-fpm --disable-phar 1>>$LOG 2>>$WF_LOG
+			./configure --prefix=${PREFIX}/php --with-mysqli --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc --enable-fpm --disable-phar CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
 		
 		fi
 
-		make -j 1>>$LOG 2>>$WF_LOG
+		make 1>>$LOG 2>>$WF_LOG
 		make install 1>>$LOG 2>>$WF_LOG
 		popd >/dev/null
 
 		mv ${PREFIX}/php/etc/php-fpm.conf.default ${PREFIX}/php/etc/php-fpm.conf
+		mv ${PREFIX}/php/etc/php-fpm.d/www.conf.default ${PREFIX}/php/etc/php-fpm.d/www.conf
 
 		cp tpl/php.ini $PREFIX/php/etc 
 		cp tpl/php-fpm_control ${PREFIX}/php 
 		cp tpl/php-fpm.conf ${PREFIX}/php/etc 
+		cp tpl/www.conf ${PREFIX}/php/etc/php-fpm.d/
 
 		if [ $(uname) == 'Darwin' ]; then
 			sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/php/etc/php.ini 1>>$LOG 2>>$WF_LOG
 			sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/php-fpm_control 1>>$LOG 2>>$WF_LOG
 			sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/etc/php-fpm.conf 1>>$LOG 2>>$WF_LOG
+			sed -i "" "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/etc/php-fpm.d/www.conf 1>>$LOG 2>>$WF_LOG
 		else
 			sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" $PREFIX/php/etc/php.ini 1>>$LOG 2>>$WF_LOG
 			sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/php-fpm_control 1>>$LOG 2>>$WF_LOG
 			sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/etc/php-fpm.conf 1>>$LOG 2>>$WF_LOG
+			sed -i "s|\${PEQ_ROOT}|${PREFIX}|g" ${PREFIX}/php/etc/php-fpm.d/www.conf 1>>$LOG 2>>$WF_LOG
 		fi
 
 		echo $? > $PHP_INSTALL_STATE
@@ -172,7 +197,7 @@ function install_yaf(){
 		pushd $PWD >/dev/null
 		cd package 2>>$WF_LOG
 
-		_TAR=$(ls yaf*.tar.gz 2>>$WF_LOG);
+		_TAR=$(ls yaf*.tgz 2>>$WF_LOG);
 		mkdir -p $_DIR 2>>$WF_LOG && tar zxf $_TAR -C $_DIR 2>>$WF_LOG
 
 		_DIR=$_DIR/$(ls $_DIR | grep yaf)
@@ -223,6 +248,114 @@ function install_yaf(){
 	done
 }
 
+function install_msgpack(){
+	{
+		sleep 3
+
+		_DIR=/tmp/msgpack
+
+		pushd $PWD >/dev/null
+		cd package 2>>$WF_LOG
+
+		_TAR=$(ls msgpack*.tgz 2>>$WF_LOG);
+		mkdir -p $_DIR 2>>$WF_LOG && tar zxf $_TAR -C $_DIR 2>>$WF_LOG
+
+		_DIR=$_DIR/$(ls $_DIR | grep msgpack)
+		cd $_DIR 2>>$WF_LOG
+		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
+		./configure --with-php-config=${PREFIX}/php/bin/php-config  1>>$LOG 2>>$WF_LOG
+		
+		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+
+		popd >/dev/null
+
+		cp tpl/msgpack.ini $PREFIX/php/etc/ext
+
+		echo $? > $MSGPACK_INSTALL_STATE
+	}&
+
+	MSGPACK_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing msgpack, Please wait....... $j"
+			sleep 0.1
+			tput rc
+			
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $MSGPACK_INSTALL_STATE
+				MSGPACK_IS_DONE="2"
+				break
+			fi
+			if [ -f "$MSGPACK_INSTALL_STATE" ] && [ $(cat $MSGPACK_INSTALL_STATE) != '-' ]; then
+				echo "Install yaf Done                          "
+                echo '-' > $MSGPACK_INSTALL_STATE
+				MSGPACK_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$MSGPACK_IS_DONE" = "1" ] || [ "$MSGPACK_IS_DONE" = "2" ]; then
+			break
+		fi
+	done
+}
+
+function install_redis(){
+	{
+		sleep 3
+
+		_DIR=/tmp/redis
+
+		pushd $PWD >/dev/null
+		cd package 2>>$WF_LOG
+
+		_TAR=$(ls redis*.tgz 2>>$WF_LOG);
+		mkdir -p $_DIR 2>>$WF_LOG && tar zxf $_TAR -C $_DIR 2>>$WF_LOG
+
+		_DIR=$_DIR/$(ls $_DIR | grep redis)
+		cd $_DIR 2>>$WF_LOG
+		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
+		./configure --with-php-config=${PREFIX}/php/bin/php-config  1>>$LOG 2>>$WF_LOG
+		
+		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+
+		popd >/dev/null
+
+		cp tpl/redis.ini $PREFIX/php/etc/ext
+
+		echo $? > $REDIS_INSTALL_STATE
+	}&
+
+	REDIS_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing redis, Please wait....... $j"
+			sleep 0.1
+			tput rc
+			
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $REDIS_INSTALL_STATE
+				REDIS_IS_DONE="2"
+				break
+			fi
+			if [ -f "$REDIS_INSTALL_STATE" ] && [ $(cat $REDIS_INSTALL_STATE) != '-' ]; then
+				echo "Install redis Done                          "
+                echo '-' > $REDIS_INSTALL_STATE
+				REDIS_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$REDIS_IS_DONE" = "1" ] || [ "$REDIS_IS_DONE" = "2" ]; then
+			break
+		fi
+	done
+}
+
 function install_curl(){
 	{
 		sleep 3
@@ -235,7 +368,7 @@ function install_curl(){
 		if [ $(uname) == 'Darwin' ]; then
 			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
 		else
-			./configure --with-php-config=${PREFIX}/php/bin/php-config 1>>$LOG 2>>$WF_LOG
+			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
 		fi
 		
 		make -j 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
@@ -270,6 +403,220 @@ function install_curl(){
 			fi
 		done
 		if [ "$CURL_IS_DONE" = "1" ] || [ "$CURL_IS_DONE" = "2" ]; then
+			break
+		fi
+	done
+}
+
+function install_mbstring(){
+	{
+		sleep 3
+
+		pushd $PWD >/dev/null
+		cd /tmp/php/php* 2>>$WF_LOG
+
+		cd ext/mbstring 2>>$WF_LOG
+		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
+		else
+			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
+		fi
+		
+		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+
+		popd >/dev/null
+
+		cp tpl/mbstring.ini $PREFIX/php/etc/ext
+
+		echo $? > $MBSTRING_INSTALL_STATE
+	}&
+
+	MBSTRING_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing mbstring, Please wait....... $j"
+		    sleep 0.1
+		    tput rc
+		    
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $MBSTRING_INSTALL_STATE
+				MBSTRING_IS_DONE="2"
+				break
+			fi
+			if [ -f "$MBSTRING_INSTALL_STATE" ] && [ $(cat $MBSTRING_INSTALL_STATE) != '-' ]; then
+				echo "Install mbstring Done                          "
+                echo '-' > $MBSTRING_INSTALL_STATE
+				MBSTRING_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$MBSTRING_IS_DONE" = "1" ] || [ "$MBSTRING_IS_DONE" = "2" ]; then
+			break
+		fi
+	done
+}
+
+function install_openssl(){
+	{
+		sleep 3
+
+		pushd $PWD >/dev/null
+		cd /tmp/php/php* 2>>$WF_LOG
+
+		cd ext/openssl 2>>$WF_LOG
+
+        cp config0.m4 config.m4
+
+		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
+		else
+			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
+		fi
+		
+		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+
+		popd >/dev/null
+
+		cp tpl/openssl.ini $PREFIX/php/etc/ext
+
+		echo $? > $OPENSSL_INSTALL_STATE
+	}&
+
+	OPENSSL_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing openssl, Please wait....... $j"
+		    sleep 0.1
+		    tput rc
+		    
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $OPENSSL_INSTALL_STATE
+				OPENSSL_IS_DONE="2"
+				break
+			fi
+			if [ -f "$OPENSSL_INSTALL_STATE" ] && [ $(cat $OPENSSL_INSTALL_STATE) != '-' ]; then
+				echo "Install openssl Done                          "
+                echo '-' > $OPENSSL_INSTALL_STATE
+				OPENSSL_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$OPENSSL_IS_DONE" = "1" ] || [ "$OPENSSL_IS_DONE" = "2" ]; then
+			break
+		fi
+	done
+}
+
+function install_zlib(){
+	{
+		sleep 3
+
+		pushd $PWD >/dev/null
+		cd /tmp/php/php* 2>>$WF_LOG
+
+		cd ext/zlib 2>>$WF_LOG
+
+        cp config0.m4 config.m4
+
+		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
+		else
+			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
+		fi
+		
+		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+
+		popd >/dev/null
+
+		cp tpl/zlib.ini $PREFIX/php/etc/ext
+
+		echo $? > $ZLIB_INSTALL_STATE
+	}&
+
+	ZLIB_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing zlib, Please wait....... $j"
+		    sleep 0.1
+		    tput rc
+		    
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $ZLIB_INSTALL_STATE
+				ZLIB_IS_DONE="2"
+				break
+			fi
+			if [ -f "$ZLIB_INSTALL_STATE" ] && [ $(cat $ZLIB_INSTALL_STATE) != '-' ]; then
+				echo "Install zlib Done                          "
+                echo '-' > $ZLIB_INSTALL_STATE
+				ZLIB_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$ZLIB_IS_DONE" = "1" ] || [ "$ZLIB_IS_DONE" = "2" ]; then
+			break
+		fi
+	done
+}
+
+function install_zip(){
+	{
+		sleep 3
+
+		pushd $PWD >/dev/null
+		cd /tmp/php/php* 2>>$WF_LOG
+
+		cd ext/zip 2>>$WF_LOG
+		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
+		else
+			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
+		fi
+		
+		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+
+		popd >/dev/null
+
+		cp tpl/zip.ini $PREFIX/php/etc/ext
+
+		echo $? > $ZIP_INSTALL_STATE
+	}&
+
+	ZIP_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing zip, Please wait....... $j"
+		    sleep 0.1
+		    tput rc
+		    
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $ZIP_INSTALL_STATE
+				ZIP_IS_DONE="2"
+				break
+			fi
+			if [ -f "$ZIP_INSTALL_STATE" ] && [ $(cat $ZIP_INSTALL_STATE) != '-' ]; then
+				echo "Install zip Done                          "
+                echo '-' > $ZIP_INSTALL_STATE
+				ZIP_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$ZIP_IS_DONE" = "1" ] || [ "$ZIP_IS_DONE" = "2" ]; then
 			break
 		fi
 	done
@@ -356,14 +703,32 @@ init
 #    install_yaf
 #fi
 #if [ ! -s "$WF_LOG" ]; then
-#    install_curl
+#    install_msgpack
 #fi
 if [ ! -s "$WF_LOG" ]; then
-    install_logrotate
+    install_redis
 fi
-if [ ! -s "$WF_LOG" ]; then
-    install_demo
-fi
+#if [ ! -s "$WF_LOG" ]; then
+#    install_curl
+#fi
+#if [ ! -s "$WF_LOG" ]; then
+#    install_mbstring
+#fi
+#if [ ! -s "$WF_LOG" ]; then
+#    install_openssl
+#fi
+#if [ ! -s "$WF_LOG" ]; then
+#    install_zlib
+#fi
+#if [ ! -s "$WF_LOG" ]; then
+#    install_zip
+#fi
+#if [ ! -s "$WF_LOG" ]; then
+#    install_logrotate
+#fi
+#if [ ! -s "$WF_LOG" ]; then
+#    install_demo
+#fi
 
 if [ ! -s "$WF_LOG" ]; then
     echo "=====> Install PEQ Done"
