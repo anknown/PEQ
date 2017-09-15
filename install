@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ue
+set -u
 
 function usage() {
 	echo "Usage:"
@@ -15,9 +15,11 @@ MSGPACK_INSTALL_STATE=/tmp/msgpack.install.state
 MBSTRING_INSTALL_STATE=/tmp/mbstring.install.state
 REDIS_INSTALL_STATE=/tmp/redis.install.state
 GD_INSTALL_STATE=/tmp/gd.install.state
-OPENSSL_INSTALL_STATE=/tmp/openssl.install.state
+PHP_OPENSSL_INSTALL_STATE=/tmp/phpopenssl.install.state
 ZLIB_INSTALL_STATE=/tmp/zlib.install.state
 ZIP_INSTALL_STATE=/tmp/zip.install.state
+PCRE_INSTALL_STATE=/tmp/pcre.install.state
+OPENSSL_INSTALL_STATE=/tmp/openssl.install.state
 
 LOG=/tmp/install.log
 WF_LOG=/tmp/install.log.wf
@@ -36,9 +38,11 @@ function init(){
     touch $MBSTRING_INSTALL_STATE
     touch $REDIS_INSTALL_STATE
     touch $GD_INSTALL_STATE
-    touch $OPENSSL_INSTALL_STATE
+    touch $PHP_OPENSSL_INSTALL_STATE
     touch $ZLIB_INSTALL_STATE
     touch $ZIP_INSTALL_STATE
+    touch $PCRE_INSTALL_STATE
+    touch $OPENSSL_INSTALL_STATE
     echo '-' > $NGINX_INSTALL_STATE
     echo '-' > $PHP_INSTALL_STATE
     echo '-' > $YAF_INSTALL_STATE
@@ -47,13 +51,37 @@ function init(){
     echo '-' > $MBSTRING_INSTALL_STATE
     echo '-' > $REDIS_INSTALL_STATE
     echo '-' > $GD_INSTALL_STATE
-    echo '-' > $OPENSSL_INSTALL_STATE
+    echo '-' > $PHP_OPENSSL_INSTALL_STATE
     echo '-' > $ZLIB_INSTALL_STATE
     echo '-' > $ZIP_INSTALL_STATE
+    echo '-' > $PCRE_INSTALL_STATE
+    echo '-' > $OPENSSL_INSTALL_STATE
 }
 
 function install_nginx(){
 	{
+		_PCRE_DIR=/tmp/pcre
+
+		pushd $PWD >/dev/null
+		cd package 2>>$WF_LOG
+	
+		_TAR=$(ls pcre*.tar.gz 2>>$WF_LOG);
+		mkdir -p $_PCRE_DIR 2>>$WF_LOG && tar zxf $_TAR -C $_PCRE_DIR 2>>$WF_LOG
+	
+		_PCRE_DIR=$_PCRE_DIR/$(ls $_PCRE_DIR);
+		popd >/dev/null
+
+		_OPENSSL_DIR=/tmp/openssl
+	
+		pushd $PWD >/dev/null
+		cd package 2>>$WF_LOG
+	
+		_TAR=$(ls openssl*.tar.gz 2>>$WF_LOG);
+		mkdir -p $_OPENSSL_DIR 2>>$WF_LOG && tar zxf $_TAR -C $_OPENSSL_DIR 2>>$WF_LOG
+	
+		_OPENSSL_DIR=$_OPENSSL_DIR/$(ls $_OPENSSL_DIR);
+		popd >/dev/null
+
 		_DIR=/tmp/nginx
 	
 		pushd $PWD >/dev/null
@@ -64,10 +92,20 @@ function install_nginx(){
 	
 		_DIR=$_DIR/$(ls $_DIR);
 		cd $_DIR 2>>$WF_LOG
-		./configure --prefix=${PREFIX}/webserver --with-http_ssl_module 1>>$LOG 2>>$WF_LOG
+		./configure --prefix=${PREFIX}/webserver --with-http_ssl_module --with-pcre=$_PCRE_DIR --with-openssl=$_OPENSSL_DIR 1>>$LOG 2>>$WF_LOG
+        if [ $? != 0 ]; then
+            echo 'configure error see '$LOG >> $WF_LOG
+        fi
 		
-		make -j 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
-	
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>/dev/null && make install 1>>$LOG 2>>$WF_LOG
+		else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+            if [ $? != 0 ]; then
+                echo 'make error see '$WF_LOG >> $WF_LOG
+            fi
+		fi
+        
 		popd >/dev/null
 		cp tpl/nginx.conf ${PREFIX}/webserver/conf
 		cp tpl/nginx_control ${PREFIX}/webserver
@@ -100,7 +138,7 @@ function install_nginx(){
 				NGINX_IS_DONE="2"
 				break
 			fi
-			if [ -f "$NGINX_INSTALL_STATE" ] && [ $(cat $NGINX_INSTALL_STATE) != '-' ]; then
+			if [ -f "$NGINX_INSTALL_STATE" ] && [ $(cat $NGINX_INSTALL_STATE) == '0' ]; then
 				echo "Install Nginx Done                          "
                 echo '-' > $NGINX_INSTALL_STATE
 				NGINX_IS_DONE="1"
@@ -127,18 +165,27 @@ function install_php(){
 		cd $_DIR 2>>$WF_LOG
 
 		if [ $(uname) == 'Darwin' ]; then
-			./configure --prefix=${PREFIX}/php --without-iconv --with-mysqli --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc  --enable-fpm --disable-phar CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>>$WF_LOG
+			./configure --prefix=${PREFIX}/php --without-iconv --with-mysqli --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc --enable-fpm --disable-phar CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>&1
 		else
-			./configure --prefix=${PREFIX}/php --with-mysqli --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc --enable-fpm --disable-phar CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
-		
+			./configure --prefix=${PREFIX}/php --with-mysqli --with-pdo-mysql --with-config-file-scan-dir=${PREFIX}/php/etc/ext --with-config-file-path=${PREFIX}/php/etc --enable-fpm --disable-phar CFLAGS="-w" 1>>$LOG 2>&1
 		fi
 
-		make 1>>$LOG 2>>$WF_LOG
-		make install 1>>$LOG 2>>$WF_LOG
+        if [ $? != 0 ]; then
+            echo 'configure error see '$LOG >> $WF_LOG
+        fi
+
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
+		else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+        fi
+        if [ $? != 0 ]; then
+            echo 'make error see '$WF_LOG >> $WF_LOG
+        fi
 		popd >/dev/null
 
-		mv ${PREFIX}/php/etc/php-fpm.conf.default ${PREFIX}/php/etc/php-fpm.conf
-		mv ${PREFIX}/php/etc/php-fpm.d/www.conf.default ${PREFIX}/php/etc/php-fpm.d/www.conf
+		#mv ${PREFIX}/php/etc/php-fpm.conf ${PREFIX}/php/etc/php-fpm.conf
+		#mv ${PREFIX}/php/etc/php-fpm.d/www.conf ${PREFIX}/php/etc/php-fpm.d/www.conf
 
 		cp tpl/php.ini $PREFIX/php/etc 
 		cp tpl/php-fpm_control ${PREFIX}/php 
@@ -175,7 +222,7 @@ function install_php(){
 				PHP_IS_DONE="2"
 				break
 			fi
-			if [ -f "$PHP_INSTALL_STATE" ] && [ $(cat $PHP_INSTALL_STATE) != '-' ]; then
+			if [ -f "$PHP_INSTALL_STATE" ] && [ $(cat $PHP_INSTALL_STATE) == '0' ]; then
 				echo "Install PHP Done                          "
                 echo '-' > $PHP_INSTALL_STATE
 				PHP_IS_DONE="1"
@@ -202,10 +249,24 @@ function install_yaf(){
 
 		_DIR=$_DIR/$(ls $_DIR | grep yaf)
 		cd $_DIR 2>>$WF_LOG
-		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
-		./configure --with-php-config=${PREFIX}/php/bin/php-config  1>>$LOG 2>>$WF_LOG
+		${PREFIX}/php/bin/phpize 1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>&1
+		else
+		    ./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>&1
+		fi
+        if [ $? != 0 ]; then
+            echo 'configure error see '$LOG >> $WF_LOG
+        fi
 		
-		make -j 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
+        else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+        fi
+        if [ $? != 0 ]; then
+            echo 'make error see '$WF_LOG >> $WF_LOG
+        fi
 
 		popd >/dev/null
 
@@ -263,9 +324,24 @@ function install_msgpack(){
 		_DIR=$_DIR/$(ls $_DIR | grep msgpack)
 		cd $_DIR 2>>$WF_LOG
 		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
-		./configure --with-php-config=${PREFIX}/php/bin/php-config  1>>$LOG 2>>$WF_LOG
-		
-		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>&1
+		else
+		    ./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>&1
+		fi
+        if [ $? != 0 ]; then
+            echo 'configure error see '$LOG >> $WF_LOG
+        fi
+
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
+        else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+        fi
+
+        if [ $? != 0 ]; then
+            echo 'make error see '$WF_LOG >> $WF_LOG
+        fi
 
 		popd >/dev/null
 
@@ -290,7 +366,7 @@ function install_msgpack(){
 				break
 			fi
 			if [ -f "$MSGPACK_INSTALL_STATE" ] && [ $(cat $MSGPACK_INSTALL_STATE) != '-' ]; then
-				echo "Install yaf Done                          "
+				echo "Install msgpack Done                          "
                 echo '-' > $MSGPACK_INSTALL_STATE
 				MSGPACK_IS_DONE="1"
 				break
@@ -317,9 +393,24 @@ function install_redis(){
 		_DIR=$_DIR/$(ls $_DIR | grep redis)
 		cd $_DIR 2>>$WF_LOG
 		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
-		./configure --with-php-config=${PREFIX}/php/bin/php-config  1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>&1
+		else
+		    ./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>&1
+		fi
+        if [ $? != 0 ]; then
+            echo 'configure error see '$LOG >> $WF_LOG
+        fi
 		
-		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
+        else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+        fi
+
+        if [ $? != 0 ]; then
+            echo 'make error see '$WF_LOG >> $WF_LOG
+        fi
 
 		popd >/dev/null
 
@@ -366,12 +457,23 @@ function install_curl(){
 		cd ext/curl 2>>$WF_LOG
 		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
 		if [ $(uname) == 'Darwin' ]; then
-			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
+			./configure --with-php-config=${PREFIX}/php/bin/php-config --with-curl=/usr/local/opt/curl CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>&1
 		else
-			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
+		    ./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>&1
 		fi
+        if [ $? != 0 ]; then
+            echo 'configure error see '$LOG >> $WF_LOG
+        fi
 		
-		make -j 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
+        else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+        fi
+
+        if [ $? != 0 ]; then
+            echo 'make error see '$WF_LOG >> $WF_LOG
+        fi
 
 		popd >/dev/null
 
@@ -418,12 +520,23 @@ function install_mbstring(){
 		cd ext/mbstring 2>>$WF_LOG
 		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
 		if [ $(uname) == 'Darwin' ]; then
-			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
+			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>&1
 		else
-			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
+		    ./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>&1
 		fi
+        if [ $? != 0 ]; then
+            echo 'configure error see '$LOG >> $WF_LOG
+        fi
 		
-		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
+        else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+        fi
+
+        if [ $? != 0 ]; then
+            echo 'make error see '$WF_LOG >> $WF_LOG
+        fi
 
 		popd >/dev/null
 
@@ -460,7 +573,7 @@ function install_mbstring(){
 	done
 }
 
-function install_openssl(){
+function install_phpopenssl(){
 	{
 		sleep 3
 
@@ -473,21 +586,32 @@ function install_openssl(){
 
 		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
 		if [ $(uname) == 'Darwin' ]; then
-			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
+			./configure --with-php-config=${PREFIX}/php/bin/php-config --with-openssl=/usr/local/opt/openssl CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>&1
 		else
-			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
+		    ./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>&1
+            if [ $? != 0 ]; then
+                echo 'configure error see '$LOG >> $WF_LOG
+            fi
 		fi
 		
-		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
+        else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+        fi
+
+        if [ $? != 0 ]; then
+            echo 'make error see '$WF_LOG >> $WF_LOG
+        fi
 
 		popd >/dev/null
 
 		cp tpl/openssl.ini $PREFIX/php/etc/ext
 
-		echo $? > $OPENSSL_INSTALL_STATE
+		echo $? > $PHP_OPENSSL_INSTALL_STATE
 	}&
 
-	OPENSSL_IS_DONE="0"
+	PHP_OPENSSL_IS_DONE="0"
 	while :
 	do
 		for j in '-' '\\' '|' '/'; do
@@ -498,18 +622,18 @@ function install_openssl(){
 		    
 			if [ -s "$WF_LOG" ]; then
 				echo "Sth wrong, Please check $LOG and $WF_LOG"
-                echo '-' > $OPENSSL_INSTALL_STATE
-				OPENSSL_IS_DONE="2"
+                echo '-' > $PHP_OPENSSL_INSTALL_STATE
+				PHP_OPENSSL_IS_DONE="2"
 				break
 			fi
-			if [ -f "$OPENSSL_INSTALL_STATE" ] && [ $(cat $OPENSSL_INSTALL_STATE) != '-' ]; then
+			if [ -f "$PHP_OPENSSL_INSTALL_STATE" ] && [ $(cat $PHP_OPENSSL_INSTALL_STATE) != '-' ]; then
 				echo "Install openssl Done                          "
-                echo '-' > $OPENSSL_INSTALL_STATE
-				OPENSSL_IS_DONE="1"
+                echo '-' > $PHP_OPENSSL_INSTALL_STATE
+				PHP_OPENSSL_IS_DONE="1"
 				break
 			fi
 		done
-		if [ "$OPENSSL_IS_DONE" = "1" ] || [ "$OPENSSL_IS_DONE" = "2" ]; then
+		if [ "$PHP_OPENSSL_IS_DONE" = "1" ] || [ "$PHP_OPENSSL_IS_DONE" = "2" ]; then
 			break
 		fi
 	done
@@ -528,12 +652,23 @@ function install_zlib(){
 
 		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
 		if [ $(uname) == 'Darwin' ]; then
-			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
+			./configure --with-php-config=${PREFIX}/php/bin/php-config --with-zlib=/usr/local/opt/zlib/ CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>&1
 		else
-			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
+		    ./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>&1
 		fi
+        if [ $? != 0 ]; then
+            echo 'configure error see '$LOG >> $WF_LOG
+        fi
 		
-		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
+        else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+        fi
+
+        if [ $? != 0 ]; then
+            echo 'make error see '$WF_LOG >> $WF_LOG
+        fi
 
 		popd >/dev/null
 
@@ -580,12 +715,23 @@ function install_zip(){
 		cd ext/zip 2>>$WF_LOG
 		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
 		if [ $(uname) == 'Darwin' ]; then
-			./configure --with-php-config=${PREFIX}/php/bin/php-config  CFLAGS="-Wno-enum-conversion" 1>>$LOG 2>>$WF_LOG
+			./configure --with-php-config=${PREFIX}/php/bin/php-config --with-zlib-dir=/usr/local/opt/zlib/ CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>&1
 		else
-			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>>$WF_LOG
+		    ./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>&1
 		fi
+        if [ $? != 0 ]; then
+            echo 'configure error see '$LOG >> $WF_LOG
+        fi
 		
-		make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
+        else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+        fi
+
+        if [ $? != 0 ]; then
+            echo 'make error see '$WF_LOG >> $WF_LOG
+        fi
 
 		popd >/dev/null
 
@@ -705,30 +851,30 @@ init
 #if [ ! -s "$WF_LOG" ]; then
 #    install_msgpack
 #fi
-if [ ! -s "$WF_LOG" ]; then
-    install_redis
-fi
+#if [ ! -s "$WF_LOG" ]; then
+#   install_redis
+#fi
 #if [ ! -s "$WF_LOG" ]; then
 #    install_curl
 #fi
 #if [ ! -s "$WF_LOG" ]; then
 #    install_mbstring
 #fi
-#if [ ! -s "$WF_LOG" ]; then
-#    install_openssl
-#fi
-#if [ ! -s "$WF_LOG" ]; then
-#    install_zlib
-#fi
-#if [ ! -s "$WF_LOG" ]; then
-#    install_zip
-#fi
-#if [ ! -s "$WF_LOG" ]; then
-#    install_logrotate
-#fi
-#if [ ! -s "$WF_LOG" ]; then
-#    install_demo
-#fi
+if [ ! -s "$WF_LOG" ]; then
+    install_phpopenssl
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_zlib
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_zip
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_logrotate
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_demo
+fi
 
 if [ ! -s "$WF_LOG" ]; then
     echo "=====> Install PEQ Done"
