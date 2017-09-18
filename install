@@ -100,7 +100,7 @@ function install_nginx(){
 		if [ $(uname) == 'Darwin' ]; then
 		    make 1>>$LOG 2>/dev/null && make install 1>>$LOG 2>>$WF_LOG
 		else
-		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
             if [ $? != 0 ]; then
                 echo 'make error see '$WF_LOG >> $WF_LOG
             fi
@@ -839,27 +839,27 @@ mkdir -p ${PREFIX}/bin
 
 init
 
-#if [ ! -s "$WF_LOG" ]; then
-#    install_nginx
-#fi
-#if [ ! -s "$WF_LOG" ]; then
-#    install_php
-#fi
-#if [ ! -s "$WF_LOG" ]; then
-#    install_yaf
-#fi
-#if [ ! -s "$WF_LOG" ]; then
-#    install_msgpack
-#fi
-#if [ ! -s "$WF_LOG" ]; then
-#   install_redis
-#fi
-#if [ ! -s "$WF_LOG" ]; then
-#    install_curl
-#fi
-#if [ ! -s "$WF_LOG" ]; then
-#    install_mbstring
-#fi
+if [ ! -s "$WF_LOG" ]; then
+    install_nginx
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_php
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_yaf
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_msgpack
+fi
+if [ ! -s "$WF_LOG" ]; then
+   install_redis
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_curl
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_mbstring
+fi
 if [ ! -s "$WF_LOG" ]; then
     install_phpopenssl
 fi
