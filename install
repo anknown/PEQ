@@ -20,6 +20,7 @@ ZLIB_INSTALL_STATE=/tmp/zlib.install.state
 ZIP_INSTALL_STATE=/tmp/zip.install.state
 PCRE_INSTALL_STATE=/tmp/pcre.install.state
 OPENSSL_INSTALL_STATE=/tmp/openssl.install.state
+MCRYPT_INSTALL_STATE=/tmp/mcrypt.install.state
 
 LOG=/tmp/install.log
 WF_LOG=/tmp/install.log.wf
@@ -43,6 +44,7 @@ function init(){
     touch $ZIP_INSTALL_STATE
     touch $PCRE_INSTALL_STATE
     touch $OPENSSL_INSTALL_STATE
+    touch $MCRYPT_INSTALL_STATE
     echo '-' > $NGINX_INSTALL_STATE
     echo '-' > $PHP_INSTALL_STATE
     echo '-' > $YAF_INSTALL_STATE
@@ -56,6 +58,7 @@ function init(){
     echo '-' > $ZIP_INSTALL_STATE
     echo '-' > $PCRE_INSTALL_STATE
     echo '-' > $OPENSSL_INSTALL_STATE
+    echo '-' > $MCRYPT_INSTALL_STATE
 }
 
 function install_nginx(){
@@ -768,6 +771,69 @@ function install_zip(){
 	done
 }
 
+function install_mcrypt(){
+	{
+		sleep 3
+
+		pushd $PWD >/dev/null
+		cd /tmp/php/php* 2>>$WF_LOG
+
+		cd ext/mcrypt 2>>$WF_LOG
+		${PREFIX}/php/bin/phpize  1>>$LOG 2>>$WF_LOG
+		if [ $(uname) == 'Darwin' ]; then
+			./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-Wno-logical-op-parentheses -Wno-return-type -Wno-macro-redefined -Wno-enum-conversion -Wno-logical-not-parentheses -Wno-tautological-compare -Wno-string-plus-int -Wno-gnu-statement-expression -Wno-absolute-value -Wno-format -Wno-pointer-bool-conversion -Wno-incompatible-pointer-types-discards-qualifiers -Wno-format-extra-args -Wno-format-invalid-specifier -Wno-deprecated-declarations -Wno-pointer-sign -Wno-empty-body" 1>>$LOG 2>&1
+		else
+		    ./configure --with-php-config=${PREFIX}/php/bin/php-config CFLAGS="-w" 1>>$LOG 2>&1
+		fi
+        if [ $? != 0 ]; then
+            echo 'configure error see '$LOG >> $WF_LOG
+        fi
+		
+		if [ $(uname) == 'Darwin' ]; then
+		    make 1>>$LOG 2>&1 && make install 1>>$LOG 2>>$WF_LOG
+        else
+		    make 1>>$LOG 2>>$WF_LOG && make install 1>>$LOG 2>>$WF_LOG
+        fi
+
+        if [ $? != 0 ]; then
+            echo 'make error see '$WF_LOG >> $WF_LOG
+        fi
+
+		popd >/dev/null
+
+		cp tpl/mcrypt.ini $PREFIX/php/etc/ext
+
+		echo $? > $MCRYPT_INSTALL_STATE
+	}&
+
+	MCRYPT_IS_DONE="0"
+	while :
+	do
+		for j in '-' '\\' '|' '/'; do
+			tput sc
+			echo -ne  "Installing mcrypt, Please wait....... $j"
+		    sleep 0.1
+		    tput rc
+		    
+			if [ -s "$WF_LOG" ]; then
+				echo "Sth wrong, Please check $LOG and $WF_LOG"
+                echo '-' > $MCRYPT_INSTALL_STATE
+				MCRYPT_IS_DONE="2"
+				break
+			fi
+			if [ -f "$MCRYPT_INSTALL_STATE" ] && [ $(cat $MCRYPT_INSTALL_STATE) != '-' ]; then
+				echo "Install mcrypt Done                          "
+                echo '-' > $MCRYPT_INSTALL_STATE
+				MCRYPT_IS_DONE="1"
+				break
+			fi
+		done
+		if [ "$MCRYPT_IS_DONE" = "1" ] || [ "$MCRYPT_IS_DONE" = "2" ]; then
+			break
+		fi
+	done
+}
+
 function install_logrotate(){
     cp $PWD/logrotate/bin/logrotate ${PREFIX}/bin 2>>$WF_LOG
     cp $PWD/logrotate/conf/logrotate.conf ${PREFIX}/conf/logrotate 2>>$WF_LOG
@@ -868,6 +934,9 @@ if [ ! -s "$WF_LOG" ]; then
 fi
 if [ ! -s "$WF_LOG" ]; then
     install_zip
+fi
+if [ ! -s "$WF_LOG" ]; then
+    install_mcrypt
 fi
 if [ ! -s "$WF_LOG" ]; then
     install_logrotate
